@@ -4,9 +4,10 @@ import encHex from "crypto-js/enc-hex";
 import WordArray from "crypto-js/lib-typedarrays";
 
 const DB_NAME = "book-reader";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const BOOKS_STORE = "books";
 const META_STORE = "metadata";
+const THUMBNAILS_STORE = "thumbnails";
 
 export interface BookMetadata {
   hash: string;
@@ -23,6 +24,10 @@ export interface BookMetadata {
   totalChapters?: number;
   totalPages?: number;
   fileSize: number;
+  /** When true, the book is hidden from the active library view. */
+  archived?: boolean;
+  /** Epoch ms the book was archived; used to sort the archived view. */
+  archivedAt?: number;
 }
 
 export interface ReadingPosition {
@@ -41,6 +46,12 @@ async function getDB(): Promise<IDBPDatabase> {
       }
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: "hash" });
+      }
+      if (!db.objectStoreNames.contains(THUMBNAILS_STORE)) {
+        // Keyed by book hash; value is { hash, blob }. A separate store keeps
+        // the metadata read path light — listing the library shouldn't pull
+        // image bytes off disk.
+        db.createObjectStore(THUMBNAILS_STORE, { keyPath: "hash" });
       }
     },
   });
@@ -72,7 +83,19 @@ export async function deleteBook(hash: string): Promise<void> {
   const db = await getDB();
   await db.delete(BOOKS_STORE, hash);
   await db.delete(META_STORE, hash);
+  await db.delete(THUMBNAILS_STORE, hash);
   await removeBookMeta(hash);
+}
+
+export async function saveThumbnail(hash: string, blob: Blob): Promise<void> {
+  const db = await getDB();
+  await db.put(THUMBNAILS_STORE, { hash, blob });
+}
+
+export async function getThumbnail(hash: string): Promise<Blob | null> {
+  const db = await getDB();
+  const record = await db.get(THUMBNAILS_STORE, hash);
+  return (record?.blob as Blob | undefined) ?? null;
 }
 
 export async function saveBookMeta(meta: BookMetadata): Promise<void> {

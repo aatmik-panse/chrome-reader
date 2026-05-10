@@ -1,14 +1,18 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { BookMetadata } from "../../lib/storage";
 import Tooltip from "../Tooltip";
+import { useBookThumbnail } from "../../hooks/useBookThumbnail";
 import {
   buildLibraryEntries,
   filterBySearch,
   groupForDisplay,
+  sortEntries,
   LibraryEntry,
   LibrarySort,
   timeAgo,
 } from "./library-helpers";
+
+type LibraryView = "active" | "archived";
 
 interface LibraryPanelProps {
   books: ReadonlyArray<BookMetadata>;
@@ -17,6 +21,8 @@ interface LibraryPanelProps {
   onSelect: (hash: string) => void;
   onUpload: (file: File) => void;
   onDelete: (hash: string) => void;
+  onArchive: (hash: string) => void;
+  onUnarchive: (hash: string) => void;
 }
 
 const FORMAT_BADGE: Record<BookMetadata["format"], { bg: string; text: string }> = {
@@ -32,18 +38,37 @@ export default function LibraryPanel({
   onSelect,
   onUpload,
   onDelete,
+  onArchive,
+  onUnarchive,
 }: LibraryPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<LibrarySort>("recent");
+  const [view, setView] = useState<LibraryView>("active");
   const [draggingFile, setDraggingFile] = useState(false);
   const [confirmDeleteHash, setConfirmDeleteHash] = useState<string | null>(null);
 
+  const { activeBooks, archivedBooks } = useMemo(() => {
+    const active: BookMetadata[] = [];
+    const archived: BookMetadata[] = [];
+    for (const meta of books) {
+      if (meta.archived) archived.push(meta);
+      else active.push(meta);
+    }
+    return { activeBooks: active, archivedBooks: archived };
+  }, [books]);
+
   const grouped = useMemo(() => {
-    const all = buildLibraryEntries(books, progressByHash);
+    const all = buildLibraryEntries(activeBooks, progressByHash);
     const filtered = filterBySearch(all, searchQuery);
     return groupForDisplay(filtered, sortKey);
-  }, [books, progressByHash, searchQuery, sortKey]);
+  }, [activeBooks, progressByHash, searchQuery, sortKey]);
+
+  const archivedEntries = useMemo(() => {
+    const all = buildLibraryEntries(archivedBooks, progressByHash);
+    const filtered = filterBySearch(all, searchQuery);
+    return sortEntries(filtered, sortKey);
+  }, [archivedBooks, progressByHash, searchQuery, sortKey]);
 
   const handleDropFile = useCallback(
     (event: React.DragEvent) => {
@@ -75,6 +100,14 @@ export default function LibraryPanel({
       onDrop={handleDropFile}
     >
       <div className="px-4 py-3 border-b border-oat space-y-2">
+        <div className="flex items-center gap-1 p-0.5 rounded-[10px] bg-frost/60 text-[11px]">
+          <ViewTabButton active={view === "active"} onClick={() => setView("active")}>
+            Active ({activeBooks.length})
+          </ViewTabButton>
+          <ViewTabButton active={view === "archived"} onClick={() => setView("archived")}>
+            Archived ({archivedBooks.length})
+          </ViewTabButton>
+        </div>
         <input
           type="search"
           value={searchQuery}
@@ -99,46 +132,77 @@ export default function LibraryPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        <LibraryGroup
-          label="Recent"
-          entries={grouped.recent}
-          currentHash={currentHash}
-          confirmDeleteHash={confirmDeleteHash}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onConfirmDelete={setConfirmDeleteHash}
-        />
-        <LibraryGroup
-          label={`Reading (${grouped.reading.length})`}
-          entries={grouped.reading}
-          currentHash={currentHash}
-          confirmDeleteHash={confirmDeleteHash}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onConfirmDelete={setConfirmDeleteHash}
-        />
-        <LibraryGroup
-          label={`Unstarted (${grouped.unstarted.length})`}
-          entries={grouped.unstarted}
-          currentHash={currentHash}
-          confirmDeleteHash={confirmDeleteHash}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onConfirmDelete={setConfirmDeleteHash}
-        />
-        <LibraryGroup
-          label={`Finished (${grouped.finished.length})`}
-          entries={grouped.finished}
-          currentHash={currentHash}
-          confirmDeleteHash={confirmDeleteHash}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onConfirmDelete={setConfirmDeleteHash}
-        />
-        {books.length === 0 && (
-          <p className="text-xs text-silver text-center py-12">
-            Your library is empty. Drop a book below to start reading.
-          </p>
+        {view === "active" ? (
+          <>
+            <LibraryGroup
+              label="Recent"
+              entries={grouped.recent}
+              currentHash={currentHash}
+              confirmDeleteHash={confirmDeleteHash}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onConfirmDelete={setConfirmDeleteHash}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+            />
+            <LibraryGroup
+              label={`Reading (${grouped.reading.length})`}
+              entries={grouped.reading}
+              currentHash={currentHash}
+              confirmDeleteHash={confirmDeleteHash}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onConfirmDelete={setConfirmDeleteHash}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+            />
+            <LibraryGroup
+              label={`Unstarted (${grouped.unstarted.length})`}
+              entries={grouped.unstarted}
+              currentHash={currentHash}
+              confirmDeleteHash={confirmDeleteHash}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onConfirmDelete={setConfirmDeleteHash}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+            />
+            <LibraryGroup
+              label={`Finished (${grouped.finished.length})`}
+              entries={grouped.finished}
+              currentHash={currentHash}
+              confirmDeleteHash={confirmDeleteHash}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onConfirmDelete={setConfirmDeleteHash}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+            />
+            {activeBooks.length === 0 && (
+              <p className="text-xs text-silver text-center py-12">
+                Your library is empty. Drop a book below to start reading.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <LibraryGroup
+              label="Archived"
+              entries={archivedEntries}
+              currentHash={currentHash}
+              confirmDeleteHash={confirmDeleteHash}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onConfirmDelete={setConfirmDeleteHash}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+            />
+            {archivedEntries.length === 0 && (
+              <p className="text-xs text-silver text-center py-12">
+                No archived books. Archive a book from the Active tab to move it here.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -165,6 +229,26 @@ export default function LibraryPanel({
   );
 }
 
+interface ViewTabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function ViewTabButton({ active, onClick, children }: ViewTabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 px-3 py-1.5 rounded-[8px] transition-colors ${
+        active ? "bg-clay-white text-clay-black shadow-sm" : "text-silver hover:text-clay-black"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 interface LibraryGroupProps {
   label: string;
   entries: ReadonlyArray<LibraryEntry>;
@@ -173,6 +257,8 @@ interface LibraryGroupProps {
   onSelect: (hash: string) => void;
   onDelete: (hash: string) => void;
   onConfirmDelete: (hash: string | null) => void;
+  onArchive: (hash: string) => void;
+  onUnarchive: (hash: string) => void;
 }
 
 function LibraryGroup({
@@ -183,6 +269,8 @@ function LibraryGroup({
   onSelect,
   onDelete,
   onConfirmDelete,
+  onArchive,
+  onUnarchive,
 }: LibraryGroupProps) {
   if (entries.length === 0) return null;
   return (
@@ -198,6 +286,8 @@ function LibraryGroup({
             onSelect={onSelect}
             onDelete={onDelete}
             onConfirmDelete={onConfirmDelete}
+            onArchive={onArchive}
+            onUnarchive={onUnarchive}
           />
         ))}
       </ul>
@@ -212,6 +302,8 @@ interface LibraryRowProps {
   onSelect: (hash: string) => void;
   onDelete: (hash: string) => void;
   onConfirmDelete: (hash: string | null) => void;
+  onArchive: (hash: string) => void;
+  onUnarchive: (hash: string) => void;
 }
 
 function LibraryRow({
@@ -221,6 +313,8 @@ function LibraryRow({
   onSelect,
   onDelete,
   onConfirmDelete,
+  onArchive,
+  onUnarchive,
 }: LibraryRowProps) {
   const { meta, progressPercent, status } = entry;
   const badge = FORMAT_BADGE[meta.format] ?? { bg: "bg-frost", text: "text-charcoal" };
@@ -230,6 +324,7 @@ function LibraryRow({
       : progressPercent > 0
         ? `${Math.round(progressPercent)}%`
         : "—";
+  const isArchived = meta.archived === true;
   return (
     <li>
       <div
@@ -238,6 +333,7 @@ function LibraryRow({
         }`}
         onClick={() => onSelect(meta.hash)}
       >
+        <BookCover meta={meta} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate">{meta.title}</p>
           <p className="text-[11px] text-silver truncate">
@@ -250,14 +346,8 @@ function LibraryRow({
             />
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className={`clay-badge ${badge.bg} ${badge.text} uppercase text-[9px]`}>
-            {meta.format}
-          </span>
-          <span className="text-[10px] tabular-nums text-silver">{progressLabel}</span>
-        </div>
         {isConfirmingDelete ? (
-          <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-center gap-1 flex-shrink-0" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               onClick={() => {
@@ -277,23 +367,92 @@ function LibraryRow({
             </button>
           </div>
         ) : (
-          <Tooltip label="Delete book" position="left">
-            <button
-              type="button"
-              aria-label={`Delete ${meta.title}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onConfirmDelete(meta.hash);
-              }}
-              className="clay-btn-icon !p-1.5 opacity-0 group-hover:opacity-100"
+          <div className="relative flex-shrink-0 w-12 h-9">
+            {/*
+              Two layers occupying the same slot: the metadata badge column
+              (default) and the action buttons (hover/focus). The slot has a
+              fixed width so the title column doesn't reflow when they swap;
+              we cross-fade with a small slide so the transition reads as
+              motion instead of a flash.
+            */}
+            <div
+              aria-hidden={false}
+              className="absolute inset-0 flex flex-col items-end justify-center gap-1 transition-all duration-150 ease-out group-hover:opacity-0 group-hover:translate-x-1 group-hover:pointer-events-none group-focus-within:opacity-0 group-focus-within:translate-x-1 group-focus-within:pointer-events-none"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2.5 3h7M4.5 3V2a1 1 0 011-1h1a1 1 0 011 1v1M8 5v4.5a1 1 0 01-1 1H5a1 1 0 01-1-1V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </button>
-          </Tooltip>
+              <span className={`clay-badge ${badge.bg} ${badge.text} uppercase text-[9px]`}>
+                {meta.format}
+              </span>
+              <span className="text-[10px] tabular-nums text-silver">{progressLabel}</span>
+            </div>
+            <div
+              className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 -translate-x-1 pointer-events-none transition-all duration-150 ease-out group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-x-0 group-focus-within:pointer-events-auto"
+            >
+              <Tooltip label={isArchived ? "Move back to active" : "Archive book"} position="left">
+                <button
+                  type="button"
+                  aria-label={isArchived ? `Unarchive ${meta.title}` : `Archive ${meta.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (isArchived) onUnarchive(meta.hash);
+                    else onArchive(meta.hash);
+                  }}
+                  className="clay-btn-icon !p-1.5"
+                >
+                  {isArchived ? (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 4.5h8M3 4.5v5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-5M5 6.5l1 1 1-1M6 7.5V3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 4.5h8M3 4.5v5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-5M2 2h8v2H2zM5 7h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              </Tooltip>
+              <Tooltip label="Delete book" position="left">
+                <button
+                  type="button"
+                  aria-label={`Delete ${meta.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onConfirmDelete(meta.hash);
+                  }}
+                  className="clay-btn-icon !p-1.5"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2.5 3h7M4.5 3V2a1 1 0 011-1h1a1 1 0 011 1v1M8 5v4.5a1 1 0 01-1 1H5a1 1 0 01-1-1V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </Tooltip>
+            </div>
+          </div>
         )}
       </div>
     </li>
+  );
+}
+
+interface BookCoverProps {
+  meta: BookMetadata;
+}
+
+function BookCover({ meta }: BookCoverProps) {
+  const { url, status } = useBookThumbnail(meta);
+  const initial = meta.title?.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div className="flex-shrink-0 w-9 h-12 rounded-[6px] overflow-hidden bg-oat/40 flex items-center justify-center">
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
+      ) : status === "loading" ? (
+        <div className="w-3 h-3 border border-silver/40 border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <span className="text-[14px] font-semibold text-silver">{initial}</span>
+      )}
+    </div>
   );
 }

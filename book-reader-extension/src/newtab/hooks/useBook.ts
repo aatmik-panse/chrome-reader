@@ -12,9 +12,11 @@ import {
   computeFileHash,
   getCurrentBook,
   setCurrentBook,
+  saveThumbnail,
   BookMetadata,
   POSITION_KEY_PREFIX,
 } from "../lib/storage";
+import { generateThumbnail } from "../lib/thumbnails";
 
 export type BookFormat = "epub" | "pdf" | "txt";
 
@@ -74,6 +76,10 @@ export function useBook() {
     setLibrary(metas.sort((a, b) => b.addedAt - a.addedAt));
   }, []);
 
+  // Hold the previous book so we can dispose its parser-owned resources
+  // (epubjs blob URLs, archive bookkeeping) once the next one is ready.
+  const previousBookRef = useRef<LoadedBook | null>(null);
+
   const loadBookFromHash = useCallback(async (hash: string) => {
     setLoading(true);
     setError(null);
@@ -101,6 +107,10 @@ export function useBook() {
           break;
         }
       }
+
+      const prior = previousBookRef.current;
+      previousBookRef.current = loaded;
+      if (prior?.epub) prior.epub.dispose();
 
       setCurrentBookState(loaded);
       await setCurrentBook(hash);
@@ -169,6 +179,14 @@ export function useBook() {
 
         await saveBook(hash, arrayBuffer);
         await saveBookMeta(meta);
+
+        // Best-effort cover generation. We don't block library refresh on it
+        // because the lazy hook will retry per-row anyway, and a thumbnail
+        // failure must never make a successful upload look broken.
+        void generateThumbnail(meta, arrayBuffer)
+          .then((blob) => (blob ? saveThumbnail(hash, blob) : undefined))
+          .catch(() => undefined);
+
         await loadLibrary();
         await loadBookFromHash(hash);
       } catch (e) {
@@ -183,6 +201,8 @@ export function useBook() {
     async (hash: string) => {
       await deleteBookFromStorage(hash);
       if (currentBook?.hash === hash) {
+        if (previousBookRef.current?.epub) previousBookRef.current.epub.dispose();
+        previousBookRef.current = null;
         setCurrentBookState(null);
         await setCurrentBook(null);
       }
@@ -190,6 +210,22 @@ export function useBook() {
     },
     [currentBook, loadLibrary]
   );
+
+  const setArchivedFlag = useCallback(
+    async (hash: string, archived: boolean) => {
+      const meta = await getBookMeta(hash);
+      if (!meta) return;
+      const updated: BookMetadata = archived
+        ? { ...meta, archived: true, archivedAt: Date.now() }
+        : { ...meta, archived: false, archivedAt: undefined };
+      await saveBookMeta(updated);
+      setLibrary((prev) => prev.map((entry) => (entry.hash === hash ? updated : entry)));
+    },
+    []
+  );
+
+  const archiveBook = useCallback((hash: string) => setArchivedFlag(hash, true), [setArchivedFlag]);
+  const unarchiveBook = useCallback((hash: string) => setArchivedFlag(hash, false), [setArchivedFlag]);
 
   const switchBook = useCallback(
     async (hash: string) => {
@@ -271,5 +307,7 @@ export function useBook() {
     removeBook,
     switchBook,
     loadLibrary,
+    archiveBook,
+    unarchiveBook,
   };
 }

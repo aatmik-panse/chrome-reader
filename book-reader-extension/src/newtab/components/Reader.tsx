@@ -32,6 +32,12 @@ interface ReaderProps {
    * App.tsx can null out `pendingFragment` and avoid re-firing.
    */
   onPendingFragmentConsumed?: () => void;
+  /**
+   * Invoked when the user clicks an in-EPUB `<a href>` that resolves to a
+   * different spine section. Reader handles same-chapter fragment scrolling
+   * internally; cross-chapter jumps are owned by App.
+   */
+  onNavigateToSpine?: (spineIndex: number, fragment: string | null) => void;
 }
 
 function estimateReadingTime(text: string): number {
@@ -52,7 +58,7 @@ function cleanChapterLabel(label: string): string {
 
 function Reader({
   book, position, settings, onSettingsChange, highlights, onPositionChange, onSelectionAction, onHighlightClick, hasExplain, aiAvailable,
-  pendingFragment = null, onPendingFragmentConsumed,
+  pendingFragment = null, onPendingFragmentConsumed, onNavigateToSpine,
 }: ReaderProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const proseRef = useRef<HTMLDivElement>(null);
@@ -165,6 +171,52 @@ function Reader({
     if (contentRef.current) contentRef.current.scrollTop = 0;
   }, [totalSections, onPositionChange]);
 
+  // Intercept clicks on in-chapter <a> tags. EPUB content lands in our
+  // newtab origin via dangerouslySetInnerHTML, so a raw click would either
+  // navigate the whole tab away (for absolute URLs) or fail silently (for
+  // intra-spine paths that don't exist as files). We resolve the href via
+  // ParsedEpub.resolveLink and route accordingly.
+  const handleProseClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (book.format !== "epub" || !book.epub) return;
+    // Allow modifier-clicks (open in new tab/window) to behave normally for
+    // absolute URLs. We still need to prevent default for relative paths
+    // since the browser would resolve them against the newtab origin.
+    const target = (event.target as Element | null)?.closest("a");
+    if (!target) return;
+    const rawHref = target.getAttribute("href");
+    if (!rawHref) return;
+
+    if (/^[a-z][a-z0-9+.-]*:/i.test(rawHref)) {
+      // Absolute external link (http/https/mailto/...). Open externally so
+      // the reader tab itself doesn't navigate away.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      window.open(rawHref, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const fromHref = book.epub.chapters[chapterIndex]?.href ?? "";
+    const resolved = book.epub.resolveLink(fromHref, rawHref);
+    if (!resolved) return;
+
+    event.preventDefault();
+    if (resolved.spineIndex < 0 || resolved.spineIndex === chapterIndex) {
+      // Same chapter (or unknown chapter) — scroll within the prose if the
+      // fragment matches an element id.
+      const fragment = resolved.fragment;
+      if (!fragment) return;
+      const proseElement = proseRef.current;
+      if (!proseElement) return;
+      const escaped = (typeof CSS !== "undefined" && CSS.escape) ? CSS.escape(fragment) : fragment.replace(/[^a-zA-Z0-9_-]/g, "");
+      const inDoc = proseElement.ownerDocument.getElementById(fragment);
+      const found = inDoc && proseElement.contains(inDoc) ? inDoc : proseElement.querySelector(`[id="${escaped}"], [name="${escaped}"]`);
+      if (found instanceof HTMLElement) found.scrollIntoView({ block: "start" });
+      return;
+    }
+
+    if (onNavigateToSpine) onNavigateToSpine(resolved.spineIndex, resolved.fragment);
+  }, [book, chapterIndex, onNavigateToSpine]);
+
   const { selection, clearSelection } = useSelection(contentEl, { anchorContainer: proseEl });
 
   const overlappingHighlightIds = useMemo(() => {
@@ -245,7 +297,7 @@ function Reader({
         </div>
 
         <div className="max-w-2xl mx-auto px-6 pb-28">
-          <div ref={attachProseRef} className="prose-reader" dangerouslySetInnerHTML={{ __html: content }} />
+          <div ref={attachProseRef} onClick={handleProseClick} className="prose-reader" dangerouslySetInnerHTML={{ __html: content }} />
         </div>
 
         {content && (

@@ -45,7 +45,7 @@ function estimateReadingMinutes(text: string): number {
 
 export default function App() {
   const { bootstrapped } = useAppBootstrap();
-  const { currentBook, library, loading, error, progressByHash, uploadBook, removeBook, switchBook } =
+  const { currentBook, library, loading, error, progressByHash, uploadBook, removeBook, switchBook, archiveBook, unarchiveBook } =
     useBook();
   const { user, signIn, signOut } = useAuth();
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
@@ -374,6 +374,8 @@ export default function App() {
     onSelectBook: (hash) => { switchBook(hash); panel.closeLeftPanel(); },
     onUploadBook: uploadBook,
     onDeleteBook: removeBook,
+    onArchiveBook: archiveBook,
+    onUnarchiveBook: unarchiveBook,
   });
 
   const rightPanelContent = renderRightPanelContent({
@@ -430,6 +432,7 @@ export default function App() {
             aiAvailable={ai.available}
             pendingFragment={pendingFragment}
             onPendingFragmentConsumed={onPendingFragmentConsumed}
+            onNavigateToSpine={jumpToChapter}
           />
         )}
       </AppShell>
@@ -682,6 +685,8 @@ interface LeftPanelRenderArgs {
   onSelectBook: (hash: string) => void;
   onUploadBook: (file: File) => void;
   onDeleteBook: (hash: string) => void;
+  onArchiveBook: (hash: string) => void;
+  onUnarchiveBook: (hash: string) => void;
 }
 
 function renderLeftPanelContent({
@@ -694,6 +699,8 @@ function renderLeftPanelContent({
   onSelectBook,
   onUploadBook,
   onDeleteBook,
+  onArchiveBook,
+  onUnarchiveBook,
 }: LeftPanelRenderArgs): React.ReactNode {
   if (activePanelId === "toc") {
     if (!book) {
@@ -718,6 +725,8 @@ function renderLeftPanelContent({
         onSelect={onSelectBook}
         onUpload={onUploadBook}
         onDelete={onDeleteBook}
+        onArchive={onArchiveBook}
+        onUnarchive={onUnarchiveBook}
       />
     );
   }
