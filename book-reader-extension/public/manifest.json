@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Instant Book Reader",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Your reading space, always one tab away. Read EPUB, PDF & TXT with AI summaries, highlights, vocabulary builder, and 15+ themes.",
   "permissions": ["storage", "identity", "alarms"],
   "chrome_url_overrides": {
