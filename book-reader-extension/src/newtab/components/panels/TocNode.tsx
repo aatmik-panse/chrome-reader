@@ -14,6 +14,10 @@ interface TocNodeViewProps {
   isNodeExpanded: (nodeId: string) => boolean;
   registerNodeElement: (nodeId: string, element: HTMLElement | null) => void;
   isNodeCurrent: (node: TocNodeData) => boolean;
+  /** True when this node's spineIndex is in the book's bookmark set. */
+  isBookmarked: (node: TocNodeData) => boolean;
+  /** Toggle bookmark for this node. Omit to hide the bookmark control. */
+  onToggleBookmark?: (node: TocNodeData) => void;
 }
 
 const INDENT_PER_DEPTH_PX = 12;
@@ -34,14 +38,17 @@ export default function TocNodeView({
   isNodeExpanded,
   registerNodeElement,
   isNodeCurrent,
+  isBookmarked,
+  onToggleBookmark,
 }: TocNodeViewProps) {
   const hasChildren = node.children.length > 0;
   const isUnresolved = node.spineIndex < 0;
+  const bookmarked = isBookmarked(node);
   return (
     <li>
       <div
         ref={(element) => registerNodeElement(node.id, element)}
-        className={`flex items-center gap-1 py-1 pr-1 rounded-[8px] transition-colors ${
+        className={`flex items-center gap-1 py-1 pr-1 rounded-[8px] transition-colors group/toc ${
           isCurrent ? "bg-matcha-300/20" : "hover:bg-frost/60"
         }`}
         style={{ paddingLeft: 4 + depth * INDENT_PER_DEPTH_PX }}
@@ -75,6 +82,27 @@ export default function TocNodeView({
         >
           {node.label}
         </button>
+        {onToggleBookmark && !isUnresolved && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleBookmark(node);
+            }}
+            aria-pressed={bookmarked}
+            aria-label={bookmarked ? "Remove bookmark" : "Add bookmark"}
+            title={bookmarked ? "Remove bookmark" : "Add bookmark"}
+            // Always render the bookmarked icon visible; show the empty
+            // outline only on hover/focus so the panel stays calm.
+            className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-[6px] transition-opacity ${
+              bookmarked
+                ? "text-pomegranate-400 opacity-100"
+                : "text-silver opacity-0 group-hover/toc:opacity-100 focus:opacity-100 hover:text-clay-black"
+            }`}
+          >
+            <BookmarkIcon filled={bookmarked} />
+          </button>
+        )}
       </div>
       {hasChildren && isExpanded && (
         <ul>
@@ -92,11 +120,30 @@ export default function TocNodeView({
               isNodeExpanded={isNodeExpanded}
               registerNodeElement={registerNodeElement}
               isNodeCurrent={isNodeCurrent}
+              isBookmarked={isBookmarked}
+              onToggleBookmark={onToggleBookmark}
             />
           ))}
         </ul>
       )}
     </li>
+  );
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 14 14"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 1.5h7v11l-3.5-2.5-3.5 2.5v-11z" />
+    </svg>
   );
 }
 

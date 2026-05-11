@@ -31,6 +31,7 @@ import { defineWord, DictEntry } from "./lib/dictionary";
 import { aiTranslate } from "./lib/api";
 import { useHighlights } from "./hooks/useHighlights";
 import { buildAnchor, offsetsFromRange } from "./lib/highlights/anchor";
+import { useBookmarks } from "./hooks/useBookmarks";
 import { useVocab } from "./hooks/useVocab";
 import { VocabContext, VocabDefinition } from "./lib/vocab/types";
 import type { TocNode } from "./lib/parsers/epub";
@@ -85,6 +86,7 @@ export default function App() {
 
   const ai = useAI(currentBook?.hash ?? null);
   const highlights = useHighlights(currentBook?.hash ?? null);
+  const bookmarks = useBookmarks(currentBook?.hash ?? null);
   const vocab = useVocab();
   const [editing, setEditing] = useState<{ id: string; rect: DOMRect } | null>(null);
   const currentChapterIndex = position?.chapterIndex ?? 0;
@@ -376,6 +378,8 @@ export default function App() {
     onDeleteBook: removeBook,
     onArchiveBook: archiveBook,
     onUnarchiveBook: unarchiveBook,
+    bookmarkedIndices: bookmarks.bookmarks,
+    onToggleBookmark: bookmarks.toggle,
   });
 
   const rightPanelContent = renderRightPanelContent({
@@ -433,6 +437,8 @@ export default function App() {
             pendingFragment={pendingFragment}
             onPendingFragmentConsumed={onPendingFragmentConsumed}
             onNavigateToSpine={jumpToChapter}
+            bookmarkedIndices={bookmarks.bookmarks}
+            onToggleBookmark={bookmarks.toggle}
           />
         )}
       </AppShell>
@@ -687,6 +693,8 @@ interface LeftPanelRenderArgs {
   onDeleteBook: (hash: string) => void;
   onArchiveBook: (hash: string) => void;
   onUnarchiveBook: (hash: string) => void;
+  bookmarkedIndices: ReadonlySet<number>;
+  onToggleBookmark: (spineIndex: number) => void;
 }
 
 function renderLeftPanelContent({
@@ -701,6 +709,8 @@ function renderLeftPanelContent({
   onDeleteBook,
   onArchiveBook,
   onUnarchiveBook,
+  bookmarkedIndices,
+  onToggleBookmark,
 }: LeftPanelRenderArgs): React.ReactNode {
   if (activePanelId === "toc") {
     if (!book) {
@@ -713,6 +723,8 @@ function renderLeftPanelContent({
         book={book}
         currentChapterIndex={chapterIndex}
         onJump={onJumpToTocNode}
+        bookmarkedIndices={bookmarkedIndices}
+        onToggleBookmark={onToggleBookmark}
       />
     );
   }

@@ -29,13 +29,17 @@ interface PdfViewerProps {
   aiAvailable?: boolean;
   highlights?: import("../../lib/highlights/types").Highlight[];
   onHighlightClick?: (id: string, rect: DOMRect) => void;
+  /** Set of bookmarked spineIndices (== pageNumber - 1) for the current book. */
+  bookmarkedPages?: ReadonlySet<number>;
+  /** Toggle the bookmark for the given spineIndex (pageNumber - 1). */
+  onToggleBookmark?: (spineIndex: number) => void;
 }
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.05;
 
-export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, settings, onSettingsChange, onPositionChange, onSelectionAction, hasExplain = false, aiAvailable = false, highlights = [], onHighlightClick }: PdfViewerProps) {
+export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, settings, onSettingsChange, onPositionChange, onSelectionAction, hasExplain = false, aiAvailable = false, highlights = [], onHighlightClick, bookmarkedPages, onToggleBookmark }: PdfViewerProps) {
   const { pdfDoc, totalPages, loading, error } = usePdfDocument(bookHash);
 
   const startPage = Math.max(1, initialPage);
@@ -122,6 +126,12 @@ export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, 
     onSettingsChange({ ...settingsRef.current, pdfShowThumbnailStrip: nextValue });
   }, [onSettingsChange]);
 
+  const isCurrentPageBookmarked = bookmarkedPages?.has(currentPage - 1) ?? false;
+  const handleToggleBookmarkForCurrentPage = useCallback(() => {
+    if (!onToggleBookmark) return;
+    onToggleBookmark(currentPageRef.current - 1);
+  }, [onToggleBookmark]);
+
   // PDF.js renders text on a canvas with an absolutely-positioned text layer
   // of `color: transparent` spans on top. CSS Custom Highlight forces those
   // spans visible inside the highlighted range and ghosts over the canvas
@@ -200,6 +210,21 @@ export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, 
     }
   }, [pdfDoc, totalPages, startPage]);
 
+  // Sync currentPage when initialPage changes from outside (TOC click, thumbnail
+  // jump in another book, library switch). Without this the prop only seeds the
+  // initial useState and external navigations to a different page are dropped.
+  // Guarded by currentPageRef so the scroll → onPositionChange → updated position
+  // round-trip doesn't cause a redundant setState/scroll.
+  useEffect(() => {
+    if (!pdfDoc) return;
+    const ceiling = totalPages > 0 ? totalPages : initialPage;
+    const target = Math.max(1, Math.min(initialPage, ceiling));
+    if (target === currentPageRef.current) return;
+    setCurrentPage(target);
+    currentPageRef.current = target;
+    currentScrollRatioRef.current = 0;
+  }, [initialPage, totalPages, pdfDoc]);
+
   if (loading) {
     return (
       <div className="flex flex-col h-full bg-cream items-center justify-center">
@@ -243,6 +268,8 @@ export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, 
         showPageNav={settings.pdfShowPageNav ?? true}
         showColorMode={settings.pdfShowColorMode ?? true}
         showZoom={settings.pdfShowZoom ?? true}
+        isCurrentPageBookmarked={isCurrentPageBookmarked}
+        onToggleBookmark={onToggleBookmark ? handleToggleBookmarkForCurrentPage : undefined}
         onGoToPage={goToPage}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -266,6 +293,7 @@ export default function PdfViewer({ bookHash, initialPage, initialScrollOffset, 
           currentPage={currentPage}
           totalPages={totalPages}
           onJumpToPage={goToPage}
+          bookmarkedPages={bookmarkedPages}
         />
       )}
 

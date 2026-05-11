@@ -12,6 +12,10 @@ interface TocPanelProps {
   book: LoadedBook;
   currentChapterIndex: number;
   onJump: (node: TocNode) => void;
+  /** Set of bookmarked spineIndices for the current book. */
+  bookmarkedIndices?: ReadonlySet<number>;
+  /** Toggle bookmark for a given spineIndex. Omit to hide the bookmark control. */
+  onToggleBookmark?: (spineIndex: number) => void;
 }
 
 const TOC_STATE_KEY_PREFIX = "toc_state_";
@@ -94,6 +98,13 @@ function buildFlatChapterToc(book: LoadedBook): TocNode[] {
     }));
   }
   if (book.format === "pdf" && book.pdf) {
+    // Prefer the PDF's embedded outline (bookmarks). PDFs with no outline
+    // fall through to a flat page list so the user still has a way to jump
+    // around. Unresolved entries (spineIndex < 0) are kept so the user
+    // sees the structure, but TocNode renders them disabled.
+    if (book.pdf.outline && book.pdf.outline.length > 0) {
+      return book.pdf.outline;
+    }
     return Array.from({ length: book.pdf.totalPages }, (_, index) => ({
       id: String(index),
       label: `Page ${index + 1}`,
@@ -116,7 +127,13 @@ function buildFlatChapterToc(book: LoadedBook): TocNode[] {
   return [];
 }
 
-export default function TocPanel({ book, currentChapterIndex, onJump }: TocPanelProps) {
+export default function TocPanel({
+  book,
+  currentChapterIndex,
+  onJump,
+  bookmarkedIndices,
+  onToggleBookmark,
+}: TocPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
@@ -211,6 +228,21 @@ export default function TocPanel({ book, currentChapterIndex, onJump }: TocPanel
     [currentNode],
   );
 
+  const isNodeBookmarked = useCallback(
+    (node: TocNode): boolean =>
+      node.spineIndex >= 0 && (bookmarkedIndices?.has(node.spineIndex) ?? false),
+    [bookmarkedIndices],
+  );
+
+  const handleToggleNodeBookmark = useCallback(
+    (node: TocNode) => {
+      if (!onToggleBookmark) return;
+      if (node.spineIndex < 0) return;
+      onToggleBookmark(node.spineIndex);
+    },
+    [onToggleBookmark],
+  );
+
   const registerNodeElement = useCallback((nodeId: string, element: HTMLElement | null) => {
     if (element) nodeElementsRef.current.set(nodeId, element);
     else nodeElementsRef.current.delete(nodeId);
@@ -249,6 +281,8 @@ export default function TocPanel({ book, currentChapterIndex, onJump }: TocPanel
                 isNodeExpanded={isNodeExpanded}
                 registerNodeElement={registerNodeElement}
                 isNodeCurrent={isNodeCurrent}
+                isBookmarked={isNodeBookmarked}
+                onToggleBookmark={onToggleBookmark ? handleToggleNodeBookmark : undefined}
               />
             ))}
           </ul>

@@ -38,6 +38,10 @@ interface ReaderProps {
    * internally; cross-chapter jumps are owned by App.
    */
   onNavigateToSpine?: (spineIndex: number, fragment: string | null) => void;
+  /** Set of bookmarked spineIndices for the current book. */
+  bookmarkedIndices?: ReadonlySet<number>;
+  /** Toggle bookmark for a given spineIndex (page or chapter index). */
+  onToggleBookmark?: (spineIndex: number) => void;
 }
 
 function estimateReadingTime(text: string): number {
@@ -59,6 +63,7 @@ function cleanChapterLabel(label: string): string {
 function Reader({
   book, position, settings, onSettingsChange, highlights, onPositionChange, onSelectionAction, onHighlightClick, hasExplain, aiAvailable,
   pendingFragment = null, onPendingFragmentConsumed, onNavigateToSpine,
+  bookmarkedIndices, onToggleBookmark,
 }: ReaderProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const proseRef = useRef<HTMLDivElement>(null);
@@ -275,6 +280,8 @@ function Reader({
         aiAvailable={aiAvailable}
         highlights={highlights}
         onHighlightClick={onHighlightClick}
+        bookmarkedPages={bookmarkedIndices}
+        onToggleBookmark={onToggleBookmark}
       />
     );
   }

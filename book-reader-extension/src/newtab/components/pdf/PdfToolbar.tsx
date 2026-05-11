@@ -13,6 +13,8 @@ interface PdfToolbarProps {
   showPageNav?: boolean;
   showColorMode?: boolean;
   showZoom?: boolean;
+  isCurrentPageBookmarked?: boolean;
+  onToggleBookmark?: () => void;
   onGoToPage: (page: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -98,6 +100,8 @@ export default function PdfToolbar({
   showPageNav = true,
   showColorMode = true,
   showZoom = true,
+  isCurrentPageBookmarked = false,
+  onToggleBookmark,
   onGoToPage,
   onZoomIn,
   onZoomOut,
@@ -204,6 +208,25 @@ export default function PdfToolbar({
           );
         }
 
+        if (onToggleBookmark) {
+          sections.push(
+            <Tooltip
+              key="bm"
+              label={isCurrentPageBookmarked ? "Remove bookmark" : "Bookmark this page"}
+              position="bottom"
+            >
+              <button
+                onClick={onToggleBookmark}
+                aria-pressed={isCurrentPageBookmarked}
+                aria-label={isCurrentPageBookmarked ? "Remove bookmark for current page" : "Bookmark current page"}
+                className={`clay-btn-icon !p-1.5 ${isCurrentPageBookmarked ? "active" : ""}`}
+              >
+                <BookmarkIcon filled={isCurrentPageBookmarked} />
+              </button>
+            </Tooltip>
+          );
+        }
+
         if (showColorMode) {
           sections.push(
             <div key="cm" className="clay-segmented flex items-center bg-oat/40 rounded-[12px] p-0.5 gap-0.5">
@@ -270,5 +293,22 @@ export default function PdfToolbar({
       {/* Right spacer to balance the thumbnails button */}
       <div className="w-[30px] flex-shrink-0" />
     </div>
+  );
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }): React.ReactElement {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 1.5h7v11l-3.5-2.5-3.5 2.5v-11z" />
+    </svg>
   );
 }
