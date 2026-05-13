@@ -14,7 +14,7 @@ A macOS-native sibling to the Chrome extension (`book-reader-extension/`) that r
 
 **Active reader.** Summoned via global hotkey (default ⌃⌥B). Standard window-level, feature parity with the extension: EPUB/PDF/TXT, highlights, AI lookup, vocab, themes.
 
-State across the wallpaper layer, active reader, and the Chrome extension is unified through the existing `book-reader-api`. Books stay local on each client; only position, highlights, and vocab cross-sync. No backend schema changes for v1.
+**Local-only for v1.** All state — library, positions, highlights, vocab, AI cache — lives on-device in SwiftData. No Google sign-in, no API sync, no cross-device sharing with the Chrome extension. The existing `book-reader-api` is untouched and the Chrome extension is unchanged. Cross-device sync is explicitly tracked as a post-v1 hardening pass (see §14).
 
 ## 2. Stack
 
@@ -30,7 +30,7 @@ State across the wallpaper layer, active reader, and the Chrome extension is uni
 | AI clients | Hand-rolled REST per provider behind shared `AIProvider` protocol (mirrors extension's `AiClient` in `lib/ai/types.ts`). Providers: OpenAI, Anthropic, Google, OpenRouter. |
 | AI streaming | `URLSession.bytes(for:)` + `AsyncSequence` SSE parser. ~30 LOC parser shared across providers. |
 | BYOK storage | Keychain (`SecItemAdd` / `SecItemCopyMatching`). `kSecAttrService = <bundle-id>`, one entry per provider keyed by `kSecAttrAccount`. `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` by default. iCloud Keychain sync opt-in via `kSecAttrSynchronizable`. |
-| Server fallback | Existing `/ai/*` endpoints called with `Bearer <jwt>`. Add SSE-streaming variants (`/ai/summarize/stream`, etc.) using Hono's `streamSSE`. |
+| AI server fallback | **Not in v1.** AI features require a BYOK key from at least one provider. If no key is configured, AI actions show an inline prompt to add one in Settings. |
 | Hotkey | `KeyboardShortcuts` (sindresorhus) — Carbon-backed, no Accessibility prompt |
 | Sandbox | Non-sandboxed v1 (direct distribution). MAS-compatible sandboxing tracked as a separate hardening pass post-v1. |
 | Distribution | Direct download + Sparkle 2.x with EdDSA signing. Notarized via `notarytool` in CI. |
@@ -64,44 +64,27 @@ Standard `.normal` level, hidden by default, summoned via global hotkey. Transit
 
 Dismiss: escape, click outside (via `NSEvent.addLocalMonitorForEvents(.leftMouseDown)` on `resignKey`), or hotkey re-press. Animate alpha 1.0 → 0 over 150ms, then `orderOut(nil)`.
 
-## 4. State and sync
+## 4. State
+
+All state is local. No network sync.
 
 ```
 App
-├── ModelContainer (SwiftData, shared)
+├── ModelContainer (SwiftData, shared, single process)
 ├── @Observable ReadingState
 │    ├── currentBookHash: String?     // @AppStorage-backed
 │    ├── currentPosition: Position?
 │    ├── theme: ThemeID
 │    └── ambientMode: .atomic | .page
-├── actor SyncCoordinator
-│    ├── pull(): GET /position, /highlights, /vocabulary → merge SwiftData
-│    └── push(): drain pending mutations → PUT /position, /highlights, /vocabulary
-├── actor SyncScheduler
-│    ├── Task loop with adaptive Task.sleep
-│    └── Subscribes to: didBecomeActive, willSleep, didWake,
-│                       NWPathMonitor, isLowPowerModeEnabled
 └── WindowGroups (ambient × N + reader)
      read .environment(readingState) and @Query for SwiftData
 ```
 
-**Sync cadence:**
+The `@Observable` store is the in-process bus between the ambient layer and the active reader: when the reader writes a new position, the ambient corner card and any page-mode windows recompute automatically via `@Query`/`@Observable` observation. No `NotificationCenter`, no Combine, no actor scheduler.
 
-| Condition | Pull interval |
-|---|---|
-| Active reader visible | 15s |
-| Ambient only, foreground | 60s |
-| Background (no active window) | 5min |
-| `isLowPowerModeEnabled` | Suspend periodic loop; rely on event hooks only |
+**Persistence triggers.** SwiftData `ModelContext.autosaveEnabled = true`. Position writes from the reader debounce 500ms before save to coalesce rapid scrolls. `NSWorkspace.willSleepNotification` and `NSApplication.willTerminateNotification` force a synchronous save.
 
-Push is debounced 2s on any position change. `NSApplication.didBecomeActiveNotification` triggers an immediate pull. `NSWorkspace.willSleepNotification` flushes pending mutations synchronously.
-
-**Conflict resolution.** Books-style:
-
-- Position: last-write-wins on `updatedAt` if local is newer. If remote is newer by >3% of book length AND within the last hour, show a non-modal toast in the active reader: "Jump to page N" / "Stay here."
-- Highlights / vocab: set-union merge by stable client UUID (the API already does this).
-
-**Cross-device push (SSE).** Deferred to v1.1. The 15s active-reader cadence + `didBecomeActive` immediate pull covers the "feels instant when I tab over to the Mac" case.
+**Cross-device sync, Google sign-in, server fallback** — all out of scope (see §14). The Mac app does not contact `book-reader-api` in v1.
 
 ## 5. Ambient mode
 
@@ -213,7 +196,7 @@ Implementations: `OpenAIProvider`, `AnthropicProvider`, `GoogleProvider`, `OpenR
 
 ### 8.2 Routing
 
-Mirror `book-reader-extension/src/newtab/lib/ai/router.ts`: per-feature provider preference (summarize → user's choice → server fallback). Falls back to server-side `/ai/*` endpoints when no BYOK key exists for the selected provider.
+Per-feature provider preference (summarize, ask, explain, translate, highlights-from-selection each have their own configured provider+model). No server fallback in v1: if the user has no BYOK key for the selected feature's provider, the action surface shows an inline "Add an API key in Settings → AI" affordance and the call is not attempted.
 
 ### 8.3 Cache
 
@@ -310,8 +293,7 @@ A single `Settings { TabView { … } }` scene. Each tab is a `Form` with `.formS
 | Page mode | Column width, column placement (L / C / R), font size override, idle-to-ambient timeout |
 | Reading | Line height, justification, hyphenation, font family (mirrors extension) |
 | Library | Storage location, current book selector, import folder action |
-| Sync | Google sign-in via `ASWebAuthenticationSession` against Google's OAuth 2.0 endpoints. The Mac app registers a separate Google OAuth client ID (the extension's `chrome-extension://` client ID cannot be reused); the API accepts ID tokens issued to either client ID. Cadence override, force-pull, force-push. |
-| AI | Per-provider BYOK field + "Test" button; per-feature model selection; server-fallback toggle; cache size cap with current usage readout |
+| AI | Per-provider BYOK field + "Test" button; per-feature model + provider selection; cache size cap with current usage readout |
 | Shortcuts | Page-turn keys, next/previous quote, summon reader, toggle wallpaper mode |
 | Privacy & Data | Clear AI cache, export library to ZIP, reset all positions |
 | Advanced | Sparkle channel (stable / beta), enable diagnostics |
@@ -373,8 +355,11 @@ Respects `NSApp.effectiveAppearance` (KVO-observed). User override: Auto / Alway
 
 ## 14. Out of scope for v1
 
-- Real-time sync push (SSE/WebSocket from server)
-- Book blob storage server-side (users re-import on each device; hash matches)
+- **Cross-device sync with the Chrome extension** (positions, highlights, vocab). All state stays on-device.
+- **Google sign-in** via `ASWebAuthenticationSession` or any other flow.
+- **AI server fallback** — AI features require BYOK.
+- Real-time sync push (SSE/WebSocket)
+- Book blob storage server-side
 - Folder watch / Hazel-style auto-import
 - iOS / iPadOS apps
 - Mac App Store distribution
@@ -394,7 +379,7 @@ These are not architectural risks; they're product calls the user can make any t
 
 ## 16. Repository layout
 
-A new top-level directory `book-reader-mac/` containing the Xcode project. The two existing subprojects (`book-reader-extension/`, `book-reader-api/`) are unchanged in v1 except for:
+A new top-level directory `book-reader-mac/` containing the Xcode project. The two existing subprojects are **completely unchanged** in v1:
 
-- `book-reader-api`: add `/ai/*/stream` SSE-streaming variants
-- `book-reader-extension`: a build hook that publishes `dist/` to a location the Mac app's Xcode project can consume as a resource bundle. Could be a sibling `dist-shared/` checked into git or built on demand by the Mac project's pre-build script.
+- `book-reader-api/` — not touched. The Mac app does not call it.
+- `book-reader-extension/` — not touched. The Mac app's active reader embeds a copy of the extension's built `dist/` as a `WebReader.bundle` resource. The Mac project's pre-build script runs `npm --prefix ../book-reader-extension run build` (or consumes a checked-in `book-reader-mac/Resources/WebReader.bundle/` snapshot — decision deferred to the plan).
