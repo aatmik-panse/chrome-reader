@@ -14,7 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var wallpaperCoordinator: WallpaperWindowCoordinator!
     private var readerController: ReaderWindowController!
     private var libraryController: LibraryWindowController!
-    private var menuBar: MenuBarController!
     private var hotkey: GlobalHotkey!
     private var systemEvents: SystemEventObserver!
     private var advanceTrigger: AmbientAdvanceTrigger!
@@ -60,28 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         libraryController = LibraryWindowController(
             state: state, modelContainer: modelContainer, theme: theme)
 
-        menuBar = MenuBarController(
-            onToggleReader: { [weak self] in self?.readerController.toggle() },
-            onToggleAmbientMode: { [weak self] in
-                guard let self else { return }
-                state.ambientMode = state.ambientMode == .atomic ? .page : .atomic
-            },
-            onNextQuote: { [weak self] in self?.wallpaperCoordinator.advanceAllQuotes() },
-            onOpenLibrary: { [weak self] in self?.libraryController.show() },
-            onAddBooks: { [weak self] in self?.libraryController.presentOpenPanel() },
-            onOpenSettings: {
-                if #available(macOS 14.0, *) {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                } else {
-                    NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-                }
-            },
-            onCheckForUpdates: {
-                UpdateController.shared.checkForUpdates(nil)
-            },
-            onQuit: { NSApp.terminate(nil) },
-            onDropFiles: { [weak self] urls in self?.libraryController.importMany(urls) }
-        )
+        // Menu bar lives in SwiftUI as `MenuBarExtra` in InstantBookReaderApp.swift.
+        // It calls the action methods exposed below via `AppDelegate.shared`.
 
         hotkey = GlobalHotkey(
             onToggleReader: { [weak self] in self?.readerController.toggle() },
@@ -148,6 +127,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// to advance every screen's rotation controller.
     func advanceAllQuotes() {
         wallpaperCoordinator?.advanceAllQuotes()
+    }
+
+    // MARK: - Menu bar actions
+
+    func toggleReader() {
+        readerController?.toggle()
+    }
+
+    func toggleAmbientMode() {
+        state.ambientMode = state.ambientMode == .atomic ? .page : .atomic
+    }
+
+    func showLibrary() {
+        libraryController?.show()
+    }
+
+    func presentAddBooksPanel() {
+        libraryController?.presentOpenPanel()
     }
 
     @MainActor

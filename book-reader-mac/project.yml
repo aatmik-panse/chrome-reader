@@ -41,7 +41,6 @@ targets:
       - path: Core
       - path: Persistence
       - path: Windows
-      - path: MenuBar
       - path: Hotkey
       - path: System
       - path: Placeholders

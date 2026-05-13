@@ -2,7 +2,7 @@ import AppKit
 import Sparkle
 
 /// Wraps Sparkle's `SPUStandardUpdaterController` as a MainActor singleton.
-/// The "Check for updates…" menu item in MenuBarController calls
+/// The "Check for updates…" menu item in the SwiftUI `MenuBarExtra` calls
 /// `UpdateController.shared.checkForUpdates(_:)`. The feed URL and
 /// EdDSA public key are set in Info.plist (Task 1).
 @MainActor
