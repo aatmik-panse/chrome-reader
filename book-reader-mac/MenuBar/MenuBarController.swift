@@ -6,6 +6,7 @@ final class MenuBarController {
     private let statusItem: NSStatusItem
     private let onToggleReader: () -> Void
     private let onToggleAmbientMode: () -> Void
+    private let onNextQuote: () -> Void
     private let onOpenLibrary: () -> Void
     private let onAddBooks: () -> Void
     private let onOpenSettings: () -> Void
@@ -13,6 +14,7 @@ final class MenuBarController {
 
     init(onToggleReader: @escaping () -> Void,
          onToggleAmbientMode: @escaping () -> Void,
+         onNextQuote: @escaping () -> Void,
          onOpenLibrary: @escaping () -> Void,
          onAddBooks: @escaping () -> Void,
          onOpenSettings: @escaping () -> Void,
@@ -21,6 +23,7 @@ final class MenuBarController {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.onToggleReader = onToggleReader
         self.onToggleAmbientMode = onToggleAmbientMode
+        self.onNextQuote = onNextQuote
         self.onOpenLibrary = onOpenLibrary
         self.onAddBooks = onAddBooks
         self.onOpenSettings = onOpenSettings
@@ -39,6 +42,9 @@ final class MenuBarController {
         let menu = NSMenu()
         menu.addItem(makeItem(title: "Open Reader (⌃⌥B)",
                               action: #selector(toggleReaderClicked),
+                              keyEquivalent: ""))
+        menu.addItem(makeItem(title: "Next Quote",
+                              action: #selector(nextQuoteClicked),
                               keyEquivalent: ""))
         menu.addItem(makeItem(title: "Toggle Wallpaper Mode",
                               action: #selector(toggleAmbientClicked),
@@ -69,6 +75,7 @@ final class MenuBarController {
 
     @objc private func toggleReaderClicked() { onToggleReader() }
     @objc private func toggleAmbientClicked() { onToggleAmbientMode() }
+    @objc private func nextQuoteClicked() { onNextQuote() }
     @objc private func openLibraryClicked() { onOpenLibrary() }
     @objc private func addBooksClicked() { onAddBooks() }
     @objc private func openSettingsClicked() { onOpenSettings() }

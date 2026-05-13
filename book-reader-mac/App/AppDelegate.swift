@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController!
     private var hotkey: GlobalHotkey!
     private var systemEvents: SystemEventObserver!
+    private var advanceTrigger: AmbientAdvanceTrigger!
+    private var reduceMotion: AmbientReduceMotion!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -27,8 +29,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let theme: AppTheme = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? .clayDark : .clayLight
 
+        advanceTrigger = AmbientAdvanceTrigger()
+        reduceMotion = AmbientReduceMotion()
+        reduceMotion.start()
+
         wallpaperCoordinator = WallpaperWindowCoordinator(
-            state: state, modelContainer: modelContainer, theme: theme)
+            state: state,
+            modelContainer: modelContainer,
+            theme: theme,
+            advanceTrigger: advanceTrigger,
+            reduceMotion: reduceMotion
+        )
         readerController = ReaderWindowController(
             state: state, modelContainer: modelContainer, theme: theme)
         libraryController = LibraryWindowController(
@@ -40,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 state.ambientMode = state.ambientMode == .atomic ? .page : .atomic
             },
+            onNextQuote: { [weak self] in self?.wallpaperCoordinator.advanceAllQuotes() },
             onOpenLibrary: { [weak self] in self?.libraryController.show() },
             onAddBooks: { [weak self] in self?.libraryController.presentOpenPanel() },
             onOpenSettings: {
@@ -57,9 +69,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkey.register()
 
         systemEvents = SystemEventObserver(
-            onWillSleep: { [weak self] in try? self?.modelContainer.mainContext.save() },
-            onDidWake: { _ = self },
-            onLowPowerModeChange: { _ in }
+            onWillSleep: { [weak self] in
+                try? self?.modelContainer.mainContext.save()
+            },
+            onDidWake: {
+                // Plan 5: handled by the coordinator's screensDidWakeNotification observer.
+            },
+            onLowPowerModeChange: { _ in
+                // Reserved for energy policy in later plans.
+            }
         )
         systemEvents.start()
 
@@ -83,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         wallpaperCoordinator?.stop()
         systemEvents?.stop()
+        reduceMotion?.stop()
         try? modelContainer?.mainContext.save()
     }
 }
