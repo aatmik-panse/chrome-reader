@@ -57,6 +57,9 @@ targets:
       - name: Build WebReader bundle from extension dist
         script: |
           set -euo pipefail
+          # Xcode launches build scripts with a minimal PATH (no Homebrew,
+          # no nvm). Augment it so `node`/`npm` resolve in the GUI build.
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/$(ls -1 $HOME/.nvm/versions/node 2>/dev/null | tail -1)/bin:$PATH"
           EXT_DIR="${SRCROOT}/../book-reader-extension"
           if [ ! -d "$EXT_DIR" ]; then
             EXT_DIR="/Users/profitoniumapps/Documents/chromeApps/book-reader-extension"
@@ -66,12 +69,26 @@ targets:
             echo "error: book-reader-extension directory not found at $EXT_DIR"
             exit 1
           fi
-          pushd "$EXT_DIR" >/dev/null
-          if [ ! -d node_modules ]; then
-            npm install --no-audit --no-fund
+          # If node isn't on PATH (e.g. fresh dev box without Homebrew),
+          # fall back to an existing dist/ if one is present, otherwise
+          # fail with a clear message.
+          if ! command -v npm >/dev/null 2>&1; then
+            if [ -f "$EXT_DIR/dist/src/newtab/index.html" ]; then
+              echo "warning: npm not on PATH; reusing existing $EXT_DIR/dist"
+            else
+              echo "error: npm not found on PATH and no pre-built dist/ available."
+              echo "Install Node.js (brew install node) or build the extension"
+              echo "once from a terminal: cd $EXT_DIR && npm install && npm run build"
+              exit 1
+            fi
+          else
+            pushd "$EXT_DIR" >/dev/null
+            if [ ! -d node_modules ]; then
+              npm install --no-audit --no-fund
+            fi
+            npm run build
+            popd >/dev/null
           fi
-          npm run build
-          popd >/dev/null
           rm -rf "$DEST"
           mkdir -p "$DEST"
           cp -R "$EXT_DIR/dist/." "$DEST/"
