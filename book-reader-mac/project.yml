@@ -21,6 +21,9 @@ packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     from: 0.9.19
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
 
 targets:
   InstantBookReader:
@@ -42,6 +45,9 @@ targets:
       - path: Settings
       - path: PageMode
       - path: Resources
+      - path: Intents
+      - path: Accessibility
+      - path: Update
     resources:
       - path: Resources/WebReader.bundle
         optional: true
@@ -78,6 +84,7 @@ targets:
     dependencies:
       - package: KeyboardShortcuts
       - package: ZIPFoundation
+      - package: Sparkle
     info:
       path: App/Info.plist
       properties:
@@ -88,6 +95,10 @@ targets:
         CFBundleVersion: "1"
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
+        SUFeedURL: https://updates.instantbookreader.app/appcast.xml
+        SUPublicEDKey: REPLACE_WITH_EDDSA_PUBLIC_KEY_AFTER_KEYGEN
+        SUEnableInstallerLauncherService: true
+        NSAppleEventsUsageDescription: "Instant Book Reader uses Apple Events for the Reveal in Finder action."
         CFBundleDocumentTypes:
           - CFBundleTypeName: "EPUB Book"
             CFBundleTypeRole: Viewer
