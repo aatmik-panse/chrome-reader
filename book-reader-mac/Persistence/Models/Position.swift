@@ -11,17 +11,26 @@ final class Position {
     var chapterTitle: String?
     var updatedAt: Date
 
+    /// Transient hint set by page-mode hotkeys when format is EPUB or TXT.
+    /// "next" or "previous". The active page-mode view reads, applies a
+    /// screen-height scroll, and resets this to nil. Persisted because page-mode
+    /// views are recreated on every `@Query` update — the hint must survive
+    /// the SwiftData refresh.
+    var pendingScrollDirection: String?
+
     var book: Book?
 
     init(bookHash: String,
          anchor: String,
          percentage: Double,
          chapterTitle: String? = nil,
-         updatedAt: Date = .now) {
+         updatedAt: Date = .now,
+         pendingScrollDirection: String? = nil) {
         self.bookHash = bookHash
         self.anchor = anchor
         self.percentage = percentage
         self.chapterTitle = chapterTitle
         self.updatedAt = updatedAt
+        self.pendingScrollDirection = pendingScrollDirection
     }
 }
