@@ -37,3 +37,45 @@ for the spec and `docs/superpowers/plans/2026-05-13-macos-reader-*` for plans.
    crossfade to the ambient cover-card overlay. Move the mouse — page mode
    returns.
 9. Connect a second display. Both displays should render the same page.
+
+## Release engineering
+
+### Generate the Sparkle EdDSA keypair (one-time, on the dev machine)
+
+Run this exactly once on a trusted developer machine. The plan does **not**
+run this command — operator action is required.
+
+    swift run -c release --package-path \
+      ~/Library/Developer/Xcode/DerivedData/<derived>/SourcePackages/checkouts/Sparkle \
+      generate_keys
+
+A simpler alternative on a fresh checkout:
+
+    git clone --depth 1 https://github.com/sparkle-project/Sparkle /tmp/sparkle
+    cd /tmp/sparkle && ./bin/generate_keys
+
+`generate_keys` prints the public key (paste it into `project.yml` under
+`SUPublicEDKey` and regenerate the project) and stores the private key in
+the macOS Keychain. Export the private key with:
+
+    ./bin/generate_keys -x sparkle.key
+
+Upload `sparkle.key` as the `SPARKLE_ED_PRIVATE_KEY` GitHub Actions secret,
+then delete the local copy. Never commit it.
+
+### Required GitHub Actions secrets
+
+- `APPLE_ID`
+- `APPLE_PASSWORD` (app-specific)
+- `TEAM_ID`
+- `APPLE_DEVELOPER_ID_P12`
+- `APPLE_DEVELOPER_ID_P12_PASSWORD`
+- `SPARKLE_ED_PRIVATE_KEY`
+
+### Cutting a release
+
+    git tag mac-v0.1.0
+    git push origin mac-v0.1.0
+
+The `mac-release.yml` workflow archives, notarizes, signs for Sparkle, and
+uploads to a GitHub Release.

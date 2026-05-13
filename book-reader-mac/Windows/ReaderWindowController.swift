@@ -24,6 +24,10 @@ final class ReaderWindowController {
         self.window.orderOut(nil)
     }
 
+    /// True while the reader window is on-screen. Used by Plan 7's
+    /// `OpenBookIntent` to decide whether to summon vs. leave alone.
+    var isVisible: Bool { window.isVisible }
+
     func toggle() {
         if window.isVisible {
             dismiss()

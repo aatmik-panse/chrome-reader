@@ -32,4 +32,19 @@ final class WallpaperWindow: NSWindow {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    /// Posted with `userInfo["isVisible": Bool]`. The wallpaper coordinator
+    /// or AmbientRotationController subscribes to suspend/resume timers.
+    static let occlusionStateChanged = Notification.Name("WallpaperWindow.occlusionStateChanged")
+
+    override var occlusionState: NSWindow.OcclusionState {
+        let state = super.occlusionState
+        let visible = state.contains(.visible)
+        NotificationCenter.default.post(
+            name: WallpaperWindow.occlusionStateChanged,
+            object: self,
+            userInfo: ["isVisible": visible]
+        )
+        return state
+    }
 }

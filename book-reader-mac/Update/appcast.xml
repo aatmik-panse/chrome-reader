@@ -1,0 +1,27 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     version="2.0">
+    <channel>
+        <title>Instant Book Reader — Stable</title>
+        <link>https://updates.instantbookreader.app/appcast.xml</link>
+        <description>Stable releases of Instant Book Reader for macOS.</description>
+        <language>en</language>
+        <item>
+            <title>Version 0.1.0</title>
+            <pubDate>Wed, 13 May 2026 00:00:00 +0000</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+                <h2>Initial release</h2>
+                <p>Ambient wallpaper reader, page mode, active reader, AI lookup.</p>
+            ]]></description>
+            <enclosure
+                url="https://updates.instantbookreader.app/InstantBookReader-0.1.0.zip"
+                sparkle:edSignature="REPLACE_WITH_EDDSA_SIGNATURE_AFTER_NOTARIZATION"
+                length="0"
+                type="application/octet-stream"/>
+        </item>
+    </channel>
+</rss>

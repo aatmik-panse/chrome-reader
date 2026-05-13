@@ -1,0 +1,122 @@
+name: macOS Release (notarize + Sparkle)
+
+on:
+  push:
+    tags:
+      - 'mac-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Archive, notarize, release
+    runs-on: macos-14
+    env:
+      APP_NAME: InstantBookReader
+      SCHEME: InstantBookReader
+      WORKSPACE: book-reader-mac/book-reader-mac.xcodeproj
+      ARCHIVE_PATH: build/InstantBookReader.xcarchive
+      EXPORT_PATH: build/Export
+      BUNDLE_ID: com.profitoniumapps.instantbookreader
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: book-reader-mac
+        run: xcodegen generate
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          p12-password: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+
+      - name: Build archive
+        run: |
+          xcodebuild \
+            -project "${WORKSPACE}" \
+            -scheme "${SCHEME}" \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "${ARCHIVE_PATH}" \
+            archive
+
+      - name: Export signed app
+        run: |
+          mkdir -p "${EXPORT_PATH}"
+          cat > exportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>developer-id</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>teamID</key>
+              <string>${{ secrets.TEAM_ID }}</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${ARCHIVE_PATH}" \
+            -exportPath "${EXPORT_PATH}" \
+            -exportOptionsPlist exportOptions.plist
+
+      - name: Zip for notarization
+        run: |
+          cd "${EXPORT_PATH}"
+          ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
+
+      - name: Notarize with notarytool
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          xcrun notarytool submit \
+            "${EXPORT_PATH}/${APP_NAME}.zip" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_PASSWORD}" \
+            --team-id "${TEAM_ID}" \
+            --wait
+
+      - name: Staple ticket
+        run: |
+          xcrun stapler staple "${EXPORT_PATH}/${APP_NAME}.app"
+          cd "${EXPORT_PATH}"
+          rm -f "${APP_NAME}.zip"
+          ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip"
+
+      - name: Sign Sparkle update with EdDSA
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          # The Sparkle SwiftPM checkout includes `sign_update`. Locate it.
+          SIGN_UPDATE=$(find ~/Library/Developer/Xcode/DerivedData \
+            -name 'sign_update' -type f 2>/dev/null | head -1)
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update binary not found in DerivedData"
+            exit 1
+          fi
+          echo "$SPARKLE_ED_PRIVATE_KEY" > /tmp/sparkle.key
+          chmod 600 /tmp/sparkle.key
+          "$SIGN_UPDATE" -f /tmp/sparkle.key "${EXPORT_PATH}/${APP_NAME}.zip" \
+            > "${EXPORT_PATH}/${APP_NAME}.zip.sig"
+          rm /tmp/sparkle.key
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Export/InstantBookReader.zip
+            build/Export/InstantBookReader.zip.sig
+            book-reader-mac/Update/appcast.xml
+          fail_on_unmatched_files: true

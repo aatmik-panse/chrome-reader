@@ -61,11 +61,19 @@
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Instant Book Reader uses Apple Events for the Reveal in Finder action.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Profitonium Apps</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://updates.instantbookreader.app/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>REPLACE_WITH_EDDSA_PUBLIC_KEY_AFTER_KEYGEN</string>
 </dict>
 </plist>
