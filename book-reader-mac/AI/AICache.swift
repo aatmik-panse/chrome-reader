@@ -64,6 +64,14 @@ public final class AICache {
         }
     }
 
+    /// Deletes every cached AI response in the supplied ModelContext.
+    /// Used by the Privacy & Data settings tab (Plan 7).
+    public static func evictAll(in context: ModelContext) throws {
+        let all = try context.fetch(FetchDescriptor<AICacheEntry>())
+        for e in all { context.delete(e) }
+        try context.save()
+    }
+
     public func totalSizeBytes() -> Int {
         let context = ModelContext(container)
         let all = (try? context.fetch(FetchDescriptor<AICacheEntry>())) ?? []
