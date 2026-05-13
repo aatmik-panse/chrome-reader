@@ -13,6 +13,13 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
     DEAD_CODE_STRIPPING: YES
+    # The WebReader pre-build phase shells out to npm/node which need to
+    # read files outside the standard build sandbox (the extension's
+    # node_modules + dist + package-lock.json). Xcode 15+ enables script
+    # sandboxing by default and denies those reads, surfacing as
+    # `Sandbox: bash(...) deny(1) file-read-data ...`. Disable sandboxing
+    # for this target's run-script phases.
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
 
 packages:
   KeyboardShortcuts:
