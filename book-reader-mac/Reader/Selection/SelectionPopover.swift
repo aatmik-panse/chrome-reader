@@ -170,8 +170,8 @@ struct AddKeyAffordance: View {
             Text("Provider: \(provider.displayName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Open Settings…") {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            SettingsLink {
+                Text("Open Settings…")
             }
         }
         .padding(8)
