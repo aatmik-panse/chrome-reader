@@ -35,6 +35,14 @@ struct PlaceholderAmbientView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        // Plan 7 §12.1 accessibility contract: the ambient layer exposes a
+        // single combined readable region so VoiceOver announces it once.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            state.currentBookHash == nil
+            ? "Ambient reading layer on \(screenName). No book selected."
+            : "Ambient reading layer on \(screenName)."
+        )
     }
 }
 
