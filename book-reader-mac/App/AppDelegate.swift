@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // AI cache eviction on launch (LRU under 200 MB).
+        Task { @MainActor in
+            AICache(container: self.modelContainer).evict()
+        }
+
         state = ReadingState()
         let theme: AppTheme = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? .clayDark : .clayLight

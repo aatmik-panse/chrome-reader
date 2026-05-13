@@ -38,6 +38,8 @@ targets:
       - path: Ambient
       - path: Library
       - path: Reader
+      - path: AI
+      - path: Settings
       - path: Resources
     resources:
       - path: Resources/WebReader.bundle
