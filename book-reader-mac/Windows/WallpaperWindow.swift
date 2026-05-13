@@ -8,8 +8,8 @@ final class WallpaperWindow: NSWindow {
         super.init(contentRect: screen.frame,
                    styleMask: [.borderless],
                    backing: .buffered,
-                   defer: false,
-                   screen: screen)
+                   defer: false)
+        self.setFrame(screen.frame, display: false)
 
         self.level = NSWindow.Level(
             rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1
