@@ -10,6 +10,7 @@ final class MenuBarController {
     private let onOpenLibrary: () -> Void
     private let onAddBooks: () -> Void
     private let onOpenSettings: () -> Void
+    private let onCheckForUpdates: () -> Void
     private let onQuit: () -> Void
 
     init(onToggleReader: @escaping () -> Void,
@@ -18,6 +19,7 @@ final class MenuBarController {
          onOpenLibrary: @escaping () -> Void,
          onAddBooks: @escaping () -> Void,
          onOpenSettings: @escaping () -> Void,
+         onCheckForUpdates: @escaping () -> Void,
          onQuit: @escaping () -> Void,
          onDropFiles: @escaping ([URL]) -> Void) {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -27,6 +29,7 @@ final class MenuBarController {
         self.onOpenLibrary = onOpenLibrary
         self.onAddBooks = onAddBooks
         self.onOpenSettings = onOpenSettings
+        self.onCheckForUpdates = onCheckForUpdates
         self.onQuit = onQuit
         configure()
         statusItem.installDropTarget(onDrop: onDropFiles)
@@ -60,6 +63,9 @@ final class MenuBarController {
         menu.addItem(makeItem(title: "Settings…",
                               action: #selector(openSettingsClicked),
                               keyEquivalent: ","))
+        menu.addItem(makeItem(title: "Check for Updates…",
+                              action: #selector(checkForUpdatesClicked),
+                              keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(makeItem(title: "Quit Instant Book Reader",
                               action: #selector(quitClicked),
@@ -79,5 +85,6 @@ final class MenuBarController {
     @objc private func openLibraryClicked() { onOpenLibrary() }
     @objc private func addBooksClicked() { onAddBooks() }
     @objc private func openSettingsClicked() { onOpenSettings() }
+    @objc private func checkForUpdatesClicked() { onCheckForUpdates() }
     @objc private func quitClicked() { onQuit() }
 }
