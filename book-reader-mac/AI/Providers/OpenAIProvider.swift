@@ -88,7 +88,7 @@ public struct OpenAIProvider: AIProvider {
                             AIRouterError.http(status: response.statusCode, body: body))
                         return
                     }
-                    for try await event in SSEParser.events(from: bytes.lines) {
+                    for try await event in SSEParser.events(fromBytes: bytes) {
                         if event.data == "[DONE]" {
                             continuation.yield(.done)
                             continuation.finish()

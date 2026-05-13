@@ -34,7 +34,7 @@ public struct GoogleProvider: AIProvider {
                             AIRouterError.http(status: response.statusCode, body: body))
                         return
                     }
-                    for try await event in SSEParser.events(from: bytes.lines) {
+                    for try await event in SSEParser.events(fromBytes: bytes) {
                         guard let data = event.data.data(using: .utf8),
                               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                               let candidates = json["candidates"] as? [[String: Any]],

@@ -14,8 +14,54 @@ public struct SSEvent: Sendable, Equatable {
 }
 
 public enum SSEParser {
-    /// Stream an `AsyncSequence<String>` of UTF-8 lines (the shape returned
-    /// by `URLSession.bytes(for:).lines`) into discrete `SSEvent`s.
+    /// Stream raw UTF-8 bytes (the shape returned by `URLSession.bytes(for:)`)
+    /// into discrete `SSEvent`s. Internally splits on `\n` (handling `\r\n`)
+    /// while preserving empty lines, which mark event boundaries.
+    public static func events<S: AsyncSequence>(
+        fromBytes bytes: S
+    ) -> AsyncThrowingStream<SSEvent, Error> where S.Element == UInt8 {
+        events(from: byteLines(bytes))
+    }
+
+    /// Adapter: convert an `AsyncSequence<UInt8>` into an `AsyncStream<String>`
+    /// of UTF-8 lines that preserves empty lines.
+    public static func byteLines<S: AsyncSequence>(
+        _ bytes: S
+    ) -> AsyncThrowingStream<String, Error> where S.Element == UInt8 {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    var buffer: [UInt8] = []
+                    for try await byte in bytes {
+                        if byte == 0x0A { // '\n'
+                            // Strip trailing CR for CRLF line endings.
+                            if buffer.last == 0x0D { buffer.removeLast() }
+                            let line = String(decoding: buffer, as: UTF8.self)
+                            continuation.yield(line)
+                            buffer.removeAll(keepingCapacity: true)
+                        } else {
+                            buffer.append(byte)
+                        }
+                    }
+                    // Trailing partial line at EOF (no terminating newline).
+                    if !buffer.isEmpty {
+                        if buffer.last == 0x0D { buffer.removeLast() }
+                        let line = String(decoding: buffer, as: UTF8.self)
+                        continuation.yield(line)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Stream an `AsyncSequence<String>` of UTF-8 lines into `SSEvent`s.
+    /// Callers feeding this from `URLSession.bytes(for:).lines` must verify
+    /// their `AsyncLineSequence` preserves empty lines; otherwise prefer
+    /// `events(fromBytes:)`.
     public static func events<S: AsyncSequence>(
         from lines: S
     ) -> AsyncThrowingStream<SSEvent, Error> where S.Element == String {

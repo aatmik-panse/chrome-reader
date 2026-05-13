@@ -7,7 +7,7 @@ final class OpenRouterProviderTests: XCTestCase {
 
     private func fixture(_ name: String) throws -> Data {
         let url = try XCTUnwrap(Bundle(for: type(of: self))
-            .url(forResource: name, withExtension: "sse", subdirectory: "Fixtures/AI"))
+            .url(forResource: name, withExtension: "sse"))
         return try Data(contentsOf: url)
     }
 
