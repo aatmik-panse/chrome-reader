@@ -157,19 +157,37 @@ struct ReaderRouter: View {
 
     @ViewBuilder
     private func webContent(book: Book) -> some View {
-        WKWebViewReader(
-            book: book,
-            selectionRect: $webSelectionRect,
-            selectionText: $webSelectionText,
-            theme: theme,
-            onPositionChange: { anchor, pct, chapter in
-                recorder?.record(bookHash: book.sha256,
-                                 anchor: anchor,
-                                 percentage: pct,
-                                 chapterTitle: chapter)
-            },
-            onHighlightAppliedFromJS: { _ in }
-        )
+        ZStack {
+            WKWebViewReader(
+                book: book,
+                theme: theme,
+                onPositionChange: { anchor, pct, chapter in
+                    recorder?.record(bookHash: book.sha256,
+                                     anchor: anchor,
+                                     percentage: pct,
+                                     chapterTitle: chapter)
+                },
+                onSelectionChanged: { rect, text in
+                    webSelectionRect = rect
+                    webSelectionText = text
+                },
+                onSelectionCleared: {
+                    webSelectionRect = nil
+                    webSelectionText = ""
+                }
+            )
+            if let rect = webSelectionRect, !webSelectionText.isEmpty {
+                WebSelectionOverlay(rect: rect,
+                                    text: webSelectionText,
+                                    theme: theme,
+                                    onHighlight: { /* Plan 4 wires JS-side anchor */ },
+                                    onCopy: {
+                                        NSPasteboard.general.clearContents()
+                                        NSPasteboard.general.setString(webSelectionText, forType: .string)
+                                    },
+                                    onExplain: {})
+            }
+        }
     }
 
     @ViewBuilder
@@ -209,6 +227,27 @@ final class SelectionPopoverHost: ObservableObject {
 @MainActor
 final class WeakBox<T: AnyObject> {
     weak var value: T?
+}
+
+private struct WebSelectionOverlay: View {
+    let rect: CGRect
+    let text: String
+    let theme: AppTheme
+    let onHighlight: () -> Void
+    let onCopy: () -> Void
+    let onExplain: () -> Void
+
+    var body: some View {
+        SelectionToolbarView(selectedText: text,
+                             onHighlight: onHighlight,
+                             onCopy: onCopy,
+                             onExplain: onExplain,
+                             aiConfigured: false)
+            .environment(\.appTheme, theme)
+            .fixedSize()
+            .offset(x: rect.minX, y: rect.maxY + 8)
+            .allowsHitTesting(true)
+    }
 }
 
 private struct PDFViewCapture: NSViewRepresentable {

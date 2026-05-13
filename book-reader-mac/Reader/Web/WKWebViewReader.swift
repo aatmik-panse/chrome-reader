@@ -6,24 +6,22 @@ import WebKit
 /// the WebReaderBridge, and the theme injector.
 struct WKWebViewReader: NSViewRepresentable {
     let book: Book
-    @Binding var selectionRect: CGRect?
-    @Binding var selectionText: String
     let theme: AppTheme
-    let onPositionChange: (String, Double, String?) -> Void   // anchor, percentage, chapterTitle
-    let onHighlightAppliedFromJS: (HighlightAnchor) -> Void
+    let onPositionChange: (String, Double, String?) -> Void
+    let onSelectionChanged: (CGRect, String) -> Void
+    let onSelectionCleared: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(book: book,
-                    theme: theme,
-                    onPositionChange: onPositionChange,
-                    onHighlightAppliedFromJS: onHighlightAppliedFromJS,
-                    onSelection: { _, _ in })
+        Coordinator(book: book, theme: theme)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         let storage = WebReaderStorage()
         let bridge = WebReaderBridge(storage: storage)
+        bridge.onSelectionChanged = onSelectionChanged
+        bridge.onSelectionCleared = onSelectionCleared
+        bridge.onPositionChanged = onPositionChange
         context.coordinator.bridge = bridge
 
         let bundleURL = Bundle.main.url(forResource: "WebReader", withExtension: "bundle")!
@@ -36,20 +34,16 @@ struct WKWebViewReader: NSViewRepresentable {
                                           getCurrent: getCurrent)
         context.coordinator.schemeHandler = scheme
         config.setURLSchemeHandler(scheme, forURLScheme: "bookreader")
-
         config.userContentController.add(bridge, name: WebReaderBridge.messageName)
-
-        // Reader-side shim that wires window.__wkBridge.* / __wkHighlights / __wkSelection.
         config.userContentController.addUserScript(
             WKUserScript(source: Self.bootstrapJS,
                          injectionTime: .atDocumentStart,
                          forMainFrameOnly: true)
         )
-        // Theme variables.
         config.userContentController.addUserScript(WebThemeInjector(theme: theme).userScript())
 
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.setValue(false, forKey: "drawsBackground") // transparent
+        webView.setValue(false, forKey: "drawsBackground")
         webView.allowsMagnification = false
         webView.navigationDelegate = context.coordinator
         bridge.attach(to: webView)
@@ -75,9 +69,6 @@ struct WKWebViewReader: NSViewRepresentable {
     }
 
     /// JS bootstrap. Defines window.__wkBridge.* and selection plumbing.
-    /// The React reader detects `window.__wkBridge` and uses it in place of
-    /// `chrome.*` (the extension's storage helpers already centralize through
-    /// a single shim — see `book-reader-extension/src/newtab/lib/storage.ts`).
     static let bootstrapJS: String = #"""
     (function() {
         const pending = new Map();
@@ -126,9 +117,6 @@ struct WKWebViewReader: NSViewRepresentable {
             }
         };
 
-        // Highlights — the reader-side renderer is provided by the extension
-        // build. Native code calls window.__wkHighlights.{apply,remove,replaceAll}.
-        // The default impl no-ops; the extension overrides on bootstrap.
         window.__wkHighlights = window.__wkHighlights || {
             apply: function() {},
             remove: function() {},
@@ -169,20 +157,10 @@ struct WKWebViewReader: NSViewRepresentable {
         var bridge: WebReaderBridge?
         var schemeHandler: BookURLSchemeHandler?
         weak var webView: WKWebView?
-        let onPositionChange: (String, Double, String?) -> Void
-        let onHighlightAppliedFromJS: (HighlightAnchor) -> Void
-        let onSelection: (CGRect, String) -> Void
 
-        init(book: Book,
-             theme: AppTheme,
-             onPositionChange: @escaping (String, Double, String?) -> Void,
-             onHighlightAppliedFromJS: @escaping (HighlightAnchor) -> Void,
-             onSelection: @escaping (CGRect, String) -> Void) {
+        init(book: Book, theme: AppTheme) {
             self.book = book
             self.theme = theme
-            self.onPositionChange = onPositionChange
-            self.onHighlightAppliedFromJS = onHighlightAppliedFromJS
-            self.onSelection = onSelection
         }
     }
 }
