@@ -38,10 +38,13 @@ targets:
       - path: Ambient
       - path: Library
       - path: Reader
+      - path: PageMode
       - path: Resources
     resources:
       - path: Resources/WebReader.bundle
         optional: true
+      - path: PageMode/Resources
+        buildPhase: resources
     preBuildScripts:
       - name: Build WebReader bundle from extension dist
         script: |
@@ -113,7 +116,10 @@ targets:
       - path: Tests
         excludes:
           - "Fixtures/**"
+          - "PageMode/Fixtures/**"
       - path: Tests/Fixtures
+        buildPhase: resources
+      - path: Tests/PageMode/Fixtures
         buildPhase: resources
     dependencies:
       - target: InstantBookReader
