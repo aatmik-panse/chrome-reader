@@ -111,4 +111,47 @@ final class BookImporter {
         context.insert(book)
         return book
     }
+
+    /// Walks `folder` recursively and attempts to import every supported file.
+    /// Returns a report listing successful imports and a per-file reason for
+    /// each skipped item. The caller is expected to surface skipped errors.
+    static func importFolder(at folder: URL,
+                             into context: ModelContext) async throws -> BookImportReport {
+        var imported: [Book] = []
+        var skipped: [BookImportReport.Skipped] = []
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(at: folder,
+                                             includingPropertiesForKeys: [.isRegularFileKey],
+                                             options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
+            return BookImportReport(imported: [], skipped: [])
+        }
+        let importer = BookImporter()
+        for case let url as URL in enumerator {
+            let isRegular = (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
+            guard isRegular else { continue }
+            guard BookFileExtension.format(for: url) != nil else {
+                continue // not a supported extension — silently skip
+            }
+            do {
+                let book = try importer.importBook(from: url, into: context)
+                imported.append(book)
+            } catch {
+                skipped.append(BookImportReport.Skipped(url: url,
+                                                       reason: error.localizedDescription))
+            }
+        }
+        try? context.save()
+        return BookImportReport(imported: imported, skipped: skipped)
+    }
+}
+
+/// Outcome of a folder import. Used by the Library tab to surface a
+/// human-readable list of files that did not make it into the library.
+struct BookImportReport {
+    struct Skipped {
+        let url: URL
+        let reason: String
+    }
+    let imported: [Book]
+    let skipped: [Skipped]
 }
