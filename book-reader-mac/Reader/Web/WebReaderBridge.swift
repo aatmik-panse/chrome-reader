@@ -119,6 +119,10 @@ final class WebReaderBridge: NSObject, WKScriptMessageHandler {
     private weak var webView: WKWebView?
     private let storage: WebReaderStorage
 
+    var onSelectionChanged: ((CGRect, String) -> Void)?
+    var onSelectionCleared: (() -> Void)?
+    var onPositionChanged: ((String, Double, String?) -> Void)?
+
     init(storage: WebReaderStorage) {
         self.storage = storage
         super.init()
@@ -146,8 +150,7 @@ final class WebReaderBridge: NSObject, WKScriptMessageHandler {
     private func handle(api: String, args: [String: Any], id: String) {
         switch api {
         case "storage.get":
-            let query = parseQuery(args["keys"])
-            reply(id: id, payload: storage.get(query))
+            reply(id: id, payload: storage.get(parseQuery(args["keys"])))
         case "storage.set":
             if let items = args["items"] as? [String: Any] { storage.set(items) }
             reply(id: id, payload: [String: Any]())
@@ -164,8 +167,23 @@ final class WebReaderBridge: NSObject, WKScriptMessageHandler {
         case "identity.clearAllCachedAuthTokens":
             reply(id: id, payload: [String: Any]())
         case "ai.stream":
-            // Plan 4 fills this in. For now respond with an explicit stub.
             reply(id: id, payload: ["error": "ai-not-configured"])
+        case "selection.changed":
+            if let rect = args["rect"] as? [String: Any],
+               let x = (rect["x"] as? NSNumber)?.doubleValue,
+               let y = (rect["y"] as? NSNumber)?.doubleValue,
+               let w = (rect["w"] as? NSNumber)?.doubleValue,
+               let h = (rect["h"] as? NSNumber)?.doubleValue {
+                let r = CGRect(x: x, y: y, width: w, height: h)
+                onSelectionChanged?(r, (args["text"] as? String) ?? "")
+            }
+        case "selection.clear":
+            onSelectionCleared?()
+        case "position.changed":
+            let anchor = (args["anchor"] as? String) ?? ""
+            let pct = (args["percentage"] as? NSNumber)?.doubleValue ?? 0
+            let chapter = args["chapterTitle"] as? String
+            onPositionChanged?(anchor, pct, chapter)
         default:
             Self.logger.notice("unhandled bridge api: \(api, privacy: .public)")
             reply(id: id, payload: ["error": "unsupported"])
