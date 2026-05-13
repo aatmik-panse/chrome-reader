@@ -35,6 +35,7 @@ targets:
       - path: Hotkey
       - path: System
       - path: Placeholders
+      - path: Ambient
       - path: Library
       - path: Resources
     dependencies:
