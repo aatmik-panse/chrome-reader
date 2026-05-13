@@ -81,7 +81,18 @@ struct ReaderRouter: View {
                                   displayMode: $pdfDisplayMode,
                                   currentPageIndex: $pdfPageIndex,
                                   currentSelection: $pdfSelection,
-                                  onSelectionRect: { rect in pdfSelectionRect = rect })
+                                  theme: theme,
+                                  aiConfigured: false,
+                                  onSaveHighlight: { anchor, text in
+                                      saveHighlight(book: book, anchor: anchor, text: text)
+                                  },
+                                  onCopyText: { text in
+                                      NSPasteboard.general.clearContents()
+                                      NSPasteboard.general.setString(text, forType: .string)
+                                  },
+                                  onExplain: { _ in
+                                      // Plan 4 wires this. v1: no-op (button is disabled).
+                                  })
                     PDFThumbnailStripView(pdfView: nil, thumbnailSize: CGSize(width: 80, height: 100))
                         .frame(height: 110)
                 }
@@ -100,6 +111,19 @@ struct ReaderRouter: View {
                     pdfDocument = PDFDocument(url: url)
                 }
         }
+    }
+
+    private func saveHighlight(book: Book,
+                               anchor: PDFAnchorResolver.Anchor,
+                               text: String) {
+        let serialized = "pdf:\(anchor.pageIndex):\(anchor.inner.startOffset)"
+        let highlight = Highlight(bookHash: book.sha256,
+                                  text: text,
+                                  surroundingText: serialized,
+                                  offset: anchor.inner.startOffset)
+        highlight.book = book
+        modelContext.insert(highlight)
+        try? modelContext.save()
     }
 
     @ViewBuilder
