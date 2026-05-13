@@ -18,6 +18,9 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.0.0
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    from: 0.9.19
 
 targets:
   InstantBookReader:
@@ -32,9 +35,11 @@ targets:
       - path: Hotkey
       - path: System
       - path: Placeholders
+      - path: Library
       - path: Resources
     dependencies:
       - package: KeyboardShortcuts
+      - package: ZIPFoundation
     info:
       path: App/Info.plist
       properties:
@@ -45,6 +50,22 @@ targets:
         CFBundleVersion: "1"
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: "EPUB Book"
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - org.idpf.epub-container
+          - CFBundleTypeName: "PDF Document"
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - com.adobe.pdf
+          - CFBundleTypeName: "Plain Text"
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.plain-text
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.profitoniumapps.instantbookreader
@@ -57,10 +78,14 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+        excludes:
+          - "Fixtures/**"
+      - path: Tests/Fixtures
+        buildPhase: resources
+        type: folder
     dependencies:
       - target: InstantBookReader
     settings:
       base:
-        GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: $(TEST_HOST)
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/InstantBookReader.app/Contents/MacOS/InstantBookReader
