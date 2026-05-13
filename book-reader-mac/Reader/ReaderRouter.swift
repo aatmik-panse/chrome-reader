@@ -1,0 +1,154 @@
+import SwiftUI
+import SwiftData
+import PDFKit
+import AppKit
+
+/// Top-level router for the active reader. Resolves the current book from
+/// ReadingState and dispatches to the format-specific view. Owns the
+/// PositionRecorder and the selection popover.
+struct ReaderRouter: View {
+    @Environment(\.appTheme) private var theme
+    @Environment(\.modelContext) private var modelContext
+    @Environment(ReadingState.self) private var state
+    @Query private var books: [Book]
+
+    @State private var pdfDocument: PDFDocument?
+    @State private var pdfDisplayMode: PDFDisplayModeOption = .singlePageContinuous
+    @State private var pdfPageIndex: Int = 0
+    @State private var pdfSelection: PDFSelection?
+    @State private var pdfSelectionRect: CGRect?
+
+    @State private var txtPlainText: String = ""
+    @State private var txtOffset: Int = 0
+    @State private var txtSelectedRange: NSRange?
+
+    @State private var webSelectionRect: CGRect?
+    @State private var webSelectionText: String = ""
+
+    @State private var recorder: PositionRecorder?
+    @StateObject private var popoverHost = SelectionPopoverHost()
+
+    private var currentBook: Book? {
+        guard let hash = state.currentBookHash else { return nil }
+        return books.first(where: { $0.sha256 == hash })
+    }
+
+    var body: some View {
+        Group {
+            if let book = currentBook {
+                content(for: book)
+            } else {
+                emptyState
+            }
+        }
+        .background(theme.surface.swiftUI)
+        .onAppear { ensureRecorder() }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Text("No book open")
+                .font(.system(size: 24, weight: .medium, design: .serif))
+                .foregroundStyle(theme.ink.swiftUI)
+            Text("Open a book from the Library window")
+                .font(.system(size: 13))
+                .foregroundStyle(theme.ink.swiftUI.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func content(for book: Book) -> some View {
+        switch book.format {
+        case .pdf:
+            pdfContent(book: book)
+        case .epub:
+            webContent(book: book)
+        case .txt:
+            txtContent(book: book)
+        }
+    }
+
+    @ViewBuilder
+    private func pdfContent(book: Book) -> some View {
+        if let doc = pdfDocument {
+            HStack(spacing: 0) {
+                PDFOutlinePanel(document: doc, pdfView: nil)
+                    .frame(width: 240)
+                VStack(spacing: 0) {
+                    PDFReaderView(book: book,
+                                  document: doc,
+                                  displayMode: $pdfDisplayMode,
+                                  currentPageIndex: $pdfPageIndex,
+                                  currentSelection: $pdfSelection,
+                                  onSelectionRect: { rect in pdfSelectionRect = rect })
+                    PDFThumbnailStripView(pdfView: nil, thumbnailSize: CGSize(width: 80, height: 100))
+                        .frame(height: 110)
+                }
+            }
+            .onChange(of: pdfPageIndex) { _, newValue in
+                let pct = Double(newValue) / Double(max(1, doc.pageCount - 1))
+                recorder?.record(bookHash: book.sha256,
+                                 anchor: "\(newValue):0",
+                                 percentage: pct,
+                                 chapterTitle: nil)
+            }
+        } else {
+            ProgressView()
+                .onAppear {
+                    let url = AppSupportPaths.books.appendingPathComponent("\(book.sha256).pdf")
+                    pdfDocument = PDFDocument(url: url)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func webContent(book: Book) -> some View {
+        WKWebViewReader(
+            book: book,
+            selectionRect: $webSelectionRect,
+            selectionText: $webSelectionText,
+            theme: theme,
+            onPositionChange: { anchor, pct, chapter in
+                recorder?.record(bookHash: book.sha256,
+                                 anchor: anchor,
+                                 percentage: pct,
+                                 chapterTitle: chapter)
+            },
+            onHighlightAppliedFromJS: { _ in }
+        )
+    }
+
+    @ViewBuilder
+    private func txtContent(book: Book) -> some View {
+        TXTReaderView(book: book,
+                      plainText: txtPlainText,
+                      currentOffset: $txtOffset,
+                      selectedRange: $txtSelectedRange,
+                      onSelectionRect: { _, _ in })
+            .onAppear {
+                let url = AppSupportPaths.books.appendingPathComponent("\(book.sha256).txt")
+                txtPlainText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            }
+            .onChange(of: txtOffset) { _, newValue in
+                let total = max(1, txtPlainText.utf16.count)
+                recorder?.record(bookHash: book.sha256,
+                                 anchor: "\(newValue)",
+                                 percentage: Double(newValue) / Double(total),
+                                 chapterTitle: nil)
+            }
+    }
+
+    private func ensureRecorder() {
+        guard recorder == nil else { return }
+        recorder = PositionRecorder(modelContainer: modelContext.container)
+    }
+}
+
+/// Tiny @Observable container for the SelectionPopover so we can mutate it
+/// without re-creating per render. The popover itself is AppKit; we hold it
+/// via a class so SwiftUI doesn't try to compare or recreate it.
+@MainActor
+final class SelectionPopoverHost: ObservableObject {
+    let popover = SelectionPopover(theme: .clayDark)
+}
