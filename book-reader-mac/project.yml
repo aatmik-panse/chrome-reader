@@ -82,7 +82,6 @@ targets:
           - "Fixtures/**"
       - path: Tests/Fixtures
         buildPhase: resources
-        type: folder
     dependencies:
       - target: InstantBookReader
     settings:
