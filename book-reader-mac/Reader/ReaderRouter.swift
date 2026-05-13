@@ -116,10 +116,11 @@ struct ReaderRouter: View {
     private func saveHighlight(book: Book,
                                anchor: PDFAnchorResolver.Anchor,
                                text: String) {
-        let serialized = "pdf:\(anchor.pageIndex):\(anchor.inner.startOffset)"
+        let serializer = PDFHighlightSerializer()
+        let encoded = serializer.encode(anchor)
         let highlight = Highlight(bookHash: book.sha256,
                                   text: text,
-                                  surroundingText: serialized,
+                                  surroundingText: encoded,
                                   offset: anchor.inner.startOffset)
         highlight.book = book
         modelContext.insert(highlight)

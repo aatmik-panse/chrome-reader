@@ -31,6 +31,32 @@ final class PDFAnchorResolverTests: XCTestCase {
         XCTAssertEqual(resolved.pageIndex, 0)
     }
 
+    func testSerializerRoundTrip() throws {
+        let url = Fixtures.pdfURL
+        let doc = try XCTUnwrap(PDFDocument(url: url))
+        let page = try XCTUnwrap(doc.page(at: 0))
+        let pageText = page.string ?? ""
+        let nsText = pageText as NSString
+        let total = nsText.length
+        let probeLen = min(4, max(1, total / 4))
+        let lower = max(1, total / 2 - probeLen / 2)
+        let safeLower = min(lower, total - probeLen)
+        let probeRange = NSRange(location: safeLower, length: probeLen)
+        let selection = try XCTUnwrap(page.selection(for: probeRange))
+
+        let resolver = PDFAnchorResolver()
+        let serializer = PDFHighlightSerializer()
+        let anchor = resolver.makeAnchor(from: selection, on: page, pageIndex: 0)
+        let encoded = serializer.encode(anchor)
+        let decoded = try serializer.decode(encoded)
+        XCTAssertEqual(decoded.pageIndex, anchor.pageIndex)
+        XCTAssertEqual(decoded.text, anchor.text)
+        XCTAssertEqual(decoded.inner, anchor.inner)
+
+        let resolved = try XCTUnwrap(resolver.resolve(anchor: decoded, in: doc))
+        XCTAssertEqual(resolved.selection.string, anchor.text)
+    }
+
     func testResolveReturnsNilWhenContextDoesNotMatch() throws {
         let url = Fixtures.pdfURL
         let doc = try XCTUnwrap(PDFDocument(url: url))
