@@ -11,12 +11,14 @@ struct ReaderRouter: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ReadingState.self) private var state
     @Query private var books: [Book]
+    @Query private var highlights: [Highlight]
 
     @State private var pdfDocument: PDFDocument?
     @State private var pdfDisplayMode: PDFDisplayModeOption = .singlePageContinuous
     @State private var pdfPageIndex: Int = 0
     @State private var pdfSelection: PDFSelection?
     @State private var pdfSelectionRect: CGRect?
+    @State private var pdfViewRef = WeakBox<HighlightedPDFView>()
 
     @State private var txtPlainText: String = ""
     @State private var txtOffset: Int = 0
@@ -71,9 +73,10 @@ struct ReaderRouter: View {
 
     @ViewBuilder
     private func pdfContent(book: Book) -> some View {
+        let savedHighlights = highlights.filter { $0.bookHash == book.sha256 }
         if let doc = pdfDocument {
             HStack(spacing: 0) {
-                PDFOutlinePanel(document: doc, pdfView: nil)
+                PDFOutlinePanel(document: doc, pdfView: pdfViewRef.value)
                     .frame(width: 240)
                 VStack(spacing: 0) {
                     PDFReaderView(book: book,
@@ -90,10 +93,12 @@ struct ReaderRouter: View {
                                       NSPasteboard.general.clearContents()
                                       NSPasteboard.general.setString(text, forType: .string)
                                   },
-                                  onExplain: { _ in
-                                      // Plan 4 wires this. v1: no-op (button is disabled).
-                                  })
-                    PDFThumbnailStripView(pdfView: nil, thumbnailSize: CGSize(width: 80, height: 100))
+                                  onExplain: { _ in })
+                    .background(
+                        PDFViewCapture(pdfViewRef: pdfViewRef)
+                    )
+                    PDFThumbnailStripView(pdfView: pdfViewRef.value,
+                                          thumbnailSize: CGSize(width: 80, height: 100))
                         .frame(height: 110)
                 }
             }
@@ -104,6 +109,10 @@ struct ReaderRouter: View {
                                  percentage: pct,
                                  chapterTitle: nil)
             }
+            .onChange(of: savedHighlights.count) { _, _ in
+                rebuildPDFHighlights(book: book, document: doc, highlights: savedHighlights)
+            }
+            .task { rebuildPDFHighlights(book: book, document: doc, highlights: savedHighlights) }
         } else {
             ProgressView()
                 .onAppear {
@@ -111,6 +120,25 @@ struct ReaderRouter: View {
                     pdfDocument = PDFDocument(url: url)
                 }
         }
+    }
+
+    private func rebuildPDFHighlights(book: Book,
+                                      document: PDFDocument,
+                                      highlights: [Highlight]) {
+        guard let view = pdfViewRef.value else { return }
+        let resolver = PDFAnchorResolver()
+        let serializer = PDFHighlightSerializer()
+        var resolved: [HighlightedPDFView.ResolvedHighlight] = []
+        for h in highlights {
+            guard let anchor = try? serializer.decode(h.surroundingText),
+                  let r = resolver.resolve(anchor: anchor, in: document),
+                  let page = r.selection.pages.first else { continue }
+            let bounds = r.selection.bounds(for: page)
+            resolved.append(.init(id: h.clientID,
+                                  pageIndex: r.pageIndex,
+                                  bounds: bounds))
+        }
+        view.setHighlights(resolved)
     }
 
     private func saveHighlight(book: Book,
@@ -176,4 +204,40 @@ struct ReaderRouter: View {
 @MainActor
 final class SelectionPopoverHost: ObservableObject {
     let popover = SelectionPopover(theme: .clayDark)
+}
+
+@MainActor
+final class WeakBox<T: AnyObject> {
+    weak var value: T?
+}
+
+private struct PDFViewCapture: NSViewRepresentable {
+    let pdfViewRef: WeakBox<HighlightedPDFView>
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // Walk up until we find the HighlightedPDFView sibling.
+        DispatchQueue.main.async {
+            guard let parent = nsView.superview else { return }
+            for sibling in parent.subviews {
+                if let pdfView = sibling as? HighlightedPDFView {
+                    pdfViewRef.value = pdfView
+                    return
+                }
+                if let pdfView = findPDFView(in: sibling) {
+                    pdfViewRef.value = pdfView
+                    return
+                }
+            }
+        }
+    }
+
+    private func findPDFView(in view: NSView) -> HighlightedPDFView? {
+        if let v = view as? HighlightedPDFView { return v }
+        for sub in view.subviews {
+            if let found = findPDFView(in: sub) { return found }
+        }
+        return nil
+    }
 }
