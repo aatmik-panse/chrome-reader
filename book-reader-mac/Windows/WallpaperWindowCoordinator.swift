@@ -99,8 +99,8 @@ final class WallpaperWindowCoordinator {
             if instances[key] == nil {
                 let seed = Self.seed(for: screen, index: index)
                 let rootView = AnyView(
-                    AmbientHostView(
-                        screenName: screen.localizedName,
+                    WallpaperRootView(
+                        screen: screen,
                         shuffleSeed: seed,
                         advanceTrigger: advanceTrigger
                     )

@@ -1,4 +1,5 @@
 import AppKit
+import PDFKit
 import SwiftData
 import SwiftUI
 
@@ -70,7 +71,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onDropFiles: { [weak self] urls in self?.libraryController.importMany(urls) }
         )
 
-        hotkey = GlobalHotkey(onToggle: { [weak self] in self?.readerController.toggle() })
+        hotkey = GlobalHotkey(
+            onToggleReader: { [weak self] in self?.readerController.toggle() },
+            onPageNext: { [weak self] in self?.advancePageMode(.next) },
+            onPagePrevious: { [weak self] in self?.advancePageMode(.previous) }
+        )
         hotkey.register()
 
         systemEvents = SystemEventObserver(
@@ -101,6 +106,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         libraryController.importMany(urls)
+    }
+
+    @MainActor
+    private func advancePageMode(_ direction: PageModeAdvance.Direction) {
+        guard state.ambientMode == .page,
+              let hash = state.currentBookHash else { return }
+        let context = modelContainer.mainContext
+        let descriptor = FetchDescriptor<Book>(predicate: #Predicate { $0.sha256 == hash })
+        guard let book = try? context.fetch(descriptor).first else { return }
+        let position: Position
+        if let existing = book.position {
+            position = existing
+        } else {
+            let p = Position(
+                bookHash: hash,
+                anchor: book.format == .pdf ? "1:0" : "0",
+                percentage: 0,
+                updatedAt: .now
+            )
+            context.insert(p)
+            book.position = p
+            position = p
+        }
+
+        let pdfPageCount: Int? = {
+            guard book.format == .pdf else { return nil }
+            let url = AppSupportPaths.books.appendingPathComponent(book.filePath)
+            return PDFDocument(url: url)?.pageCount
+        }()
+
+        PageModeAdvance.advance(position: position,
+                                format: book.format,
+                                direction: direction,
+                                pdfPageCount: pdfPageCount)
+        try? context.save()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
