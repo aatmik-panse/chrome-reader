@@ -1,0 +1,65 @@
+name: book-reader-mac
+options:
+  deploymentTarget:
+    macOS: "14.4"
+  bundleIdPrefix: com.profitoniumapps.instantbookreader
+  developmentLanguage: en
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.4"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 2.0.0
+
+targets:
+  InstantBookReader:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Persistence
+      - path: Windows
+      - path: MenuBar
+      - path: Hotkey
+      - path: System
+      - path: Placeholders
+      - path: Resources
+    dependencies:
+      - package: KeyboardShortcuts
+    info:
+      path: App/Info.plist
+      properties:
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "© 2026 Profitonium Apps"
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        NSSupportsAutomaticTermination: false
+        NSSupportsSuddenTermination: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.profitoniumapps.instantbookreader
+        INFOPLIST_FILE: App/Info.plist
+        ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  InstantBookReaderTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: InstantBookReader
+    settings:
+      base:
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/InstantBookReader.app/Contents/MacOS/InstantBookReader
