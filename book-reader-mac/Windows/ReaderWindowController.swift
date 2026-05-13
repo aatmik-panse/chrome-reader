@@ -15,7 +15,7 @@ final class ReaderWindowController {
         self.modelContainer = modelContainer
         self.theme = theme
         self.window = ReaderWindow()
-        let content = PlaceholderReaderView()
+        let content = ReaderRouter()
             .environment(\.appTheme, theme)
             .environment(state)
             .modelContainer(modelContainer)

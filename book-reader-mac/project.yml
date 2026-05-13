@@ -36,7 +36,39 @@ targets:
       - path: System
       - path: Placeholders
       - path: Library
+      - path: Reader
       - path: Resources
+    resources:
+      - path: Resources/WebReader.bundle
+        optional: true
+    preBuildScripts:
+      - name: Build WebReader bundle from extension dist
+        script: |
+          set -euo pipefail
+          EXT_DIR="${SRCROOT}/../book-reader-extension"
+          if [ ! -d "$EXT_DIR" ]; then
+            EXT_DIR="/Users/profitoniumapps/Documents/chromeApps/book-reader-extension"
+          fi
+          DEST="${SRCROOT}/Resources/WebReader.bundle"
+          if [ ! -d "$EXT_DIR" ]; then
+            echo "error: book-reader-extension directory not found at $EXT_DIR"
+            exit 1
+          fi
+          pushd "$EXT_DIR" >/dev/null
+          if [ ! -d node_modules ]; then
+            npm install --no-audit --no-fund
+          fi
+          npm run build
+          popd >/dev/null
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          cp -R "$EXT_DIR/dist/." "$DEST/"
+        inputFiles:
+          - $(SRCROOT)/../book-reader-extension/src
+          - $(SRCROOT)/../book-reader-extension/package.json
+        outputFiles:
+          - $(SRCROOT)/Resources/WebReader.bundle/index.html
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: KeyboardShortcuts
       - package: ZIPFoundation

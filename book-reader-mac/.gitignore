@@ -16,3 +16,6 @@ Package.resolved
 
 # macOS
 .DS_Store
+
+# Built JS bundle copied from book-reader-extension/dist at build time.
+Resources/WebReader.bundle/
