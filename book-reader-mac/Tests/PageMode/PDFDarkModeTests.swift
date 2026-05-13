@@ -21,7 +21,7 @@ final class PDFDarkModeTests: XCTestCase {
     }
 
     func testDarkRenderProducesPredominantlyDarkBitmap() throws {
-        let url = fixture("sample", ext: "pdf")
+        let url = fixture("pagemode-sample", ext: "pdf")
         let doc = try XCTUnwrap(PDFDocument(url: url))
         let page = try XCTUnwrap(doc.page(at: 0))
 
@@ -35,7 +35,7 @@ final class PDFDarkModeTests: XCTestCase {
     }
 
     func testDarkRenderMatchesReferencePNGWithinTolerance() throws {
-        let pdfURL = fixture("sample", ext: "pdf")
+        let pdfURL = fixture("pagemode-sample", ext: "pdf")
         let referenceURL = fixture("pdf-dark-reference", ext: "png")
 
         let doc = try XCTUnwrap(PDFDocument(url: pdfURL))

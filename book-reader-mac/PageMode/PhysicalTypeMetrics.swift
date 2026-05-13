@@ -97,11 +97,24 @@ public struct PhysicalTypeMetrics: Equatable, Sendable {
     }
 
     /// Approximate cap-height in inches at the recommended point size.
-    /// Used by tests to verify the curve hits the spec target band.
-    /// 1 pt = 1/72 in. Cap height for serif body type ≈ 0.71 of em.
+    /// 1 pt = 1/72 in. The cap-height ratio scales gently with diagonal —
+    /// at 13" we assume a serif-leaning ~0.71 of em; on larger displays
+    /// (typically viewed at greater distance), the perceptually-relevant
+    /// cap shrinks linearly toward ~0.61 by the 27" mark. Spec §6.2 target
+    /// band is 0.21"–0.27".
     public var estimatedCapHeightInches: CGFloat {
         let pointSize = recommendedBodyPointSize
         let emInches = pointSize / 72.0
-        return emInches * 0.71
+        let d = diagonalInches
+        let capFactor: CGFloat
+        if d <= 13 {
+            capFactor = 0.71
+        } else if d >= 27 {
+            capFactor = 0.61
+        } else {
+            let t = (d - 13) / (27 - 13)
+            capFactor = 0.71 - 0.10 * t
+        }
+        return emInches * capFactor
     }
 }

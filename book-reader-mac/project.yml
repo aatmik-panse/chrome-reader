@@ -117,6 +117,7 @@ targets:
         excludes:
           - "Fixtures/**"
           - "PageMode/Fixtures/**"
+          - "PageMode/_generate_reference.swift.txt"
       - path: Tests/Fixtures
         buildPhase: resources
       - path: Tests/PageMode/Fixtures
