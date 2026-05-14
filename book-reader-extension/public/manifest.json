@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Instant Book Reader",
-  "version": "1.0.5",
-  "description": "Your reading space, always one tab away. Read EPUB, PDF & TXT with highlights, vocabulary builder, 15+ themes, and optional bring-your-own-key AI assistant.",
+  "version": "1.1.0",
+  "description": "Replace New Tab with a focused EPUB, PDF & TXT reader. Highlights, vocabulary, 15+ themes, optional BYOK AI assistant.",
   "permissions": ["storage"],
   "chrome_url_overrides": {
     "newtab": "src/newtab/index.html"

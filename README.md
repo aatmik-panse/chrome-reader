@@ -67,16 +67,16 @@ Everything stays on your device. The AI assistant is **bring-your-own-key**: whe
 ```
 chromeApps/
   book-reader-extension/   Chrome Extension (React + Tailwind + Vite)
-  book-reader-api/         Legacy backend (not used by v1.0.5; kept for reference)
+  book-reader-api/         Legacy backend (not used by v1.1.0; kept for reference)
 ```
 
-> **Note on the API:** Earlier 1.0.x releases supported Google sign-in and a server-side AI fallback through `book-reader-api/`. Starting with **v1.0.5** the extension is BYOK-only and ships without sign-in or sync. The `book-reader-api/` folder is preserved for historical reference but is no longer required to run the extension.
+> **Note on the API:** Earlier 1.0.x releases supported Google sign-in and a server-side AI fallback through `book-reader-api/`. Starting with **v1.1.0** the extension is BYOK-only and ships without sign-in or sync. The `book-reader-api/` folder is preserved for historical reference but is no longer required to run the extension.
 
 ## Quick Start
 
 ### Install from Release
 
-1. Download `instant-book-reader-1.0.5.zip` from [Releases](https://github.com/aatmik-panse/chrome-reader/releases/latest)
+1. Download `instant-book-reader-1.1.0.zip` from [Releases](https://github.com/aatmik-panse/chrome-reader/releases/latest)
 2. Unzip the file
 3. Go to `chrome://extensions`
 4. Enable **Developer mode**
