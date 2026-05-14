@@ -21,6 +21,8 @@
 
 Drop an EPUB, PDF, or TXT file into the extension once — every new tab takes you back to where you left off. No app to launch, no website to load, no account required.
 
+Everything stays on your device. The AI assistant is **bring-your-own-key**: when you add a provider API key in Settings, the extension talks directly to that provider from your browser. There is no backend.
+
 ## Features
 
 ### Reader
@@ -32,14 +34,14 @@ Drop an EPUB, PDF, or TXT file into the extension once — every new tab takes y
 - **Table of Contents** — Nested chapter navigation for EPUBs with one-click jump
 - **Resizable panels** — Drag-to-resize sidebars for Library, TOC, AI, Highlights, and Words
 
-### AI Assistant (BYOK)
-- **Summarize** chapters in 3–5 paragraphs
+### AI Assistant (BYOK only)
+- **Summarize** chapters in a few paragraphs
 - **Explain** any selected text — auto-fires from the selection toolbar
 - **Key highlights** extraction from the current chapter
 - **Ask questions** about what you're reading
-- **Bring Your Own Key** — OpenAI, Anthropic, Google Gemini, or OpenRouter
+- **Bring Your Own Key** — Anthropic, OpenAI, Google Gemini, or OpenRouter
+- Keys are stored locally and sent **directly** to the provider you choose. No backend, no proxy, no telemetry.
 - **Markdown rendering** — AI responses display with proper formatting
-- **Server fallback** — works with Google Sign-In if no API key is set
 
 ### Vocabulary & Learning
 - **One-click define** — definitions, phonetics, and pronunciation audio inline
@@ -50,28 +52,31 @@ Drop an EPUB, PDF, or TXT file into the extension once — every new tab takes y
 - **CSV export** — for Anki, Notion, or anywhere else
 
 ### Highlights
-- **4 colors** — yellow, green, pink, blue with optional notes
+- **5 colors** with optional notes
 - **Sidebar list** — click any highlight to jump back to it
 - **One-click remove** — re-select a highlighted passage to remove it
 
 ### Privacy
-- **Local-first** — books, highlights, vocabulary, and progress stay in your browser
-- **No analytics, no telemetry, no ads**
-- **Optional cloud sync** — only if you sign in with Google
+- **Local-first** — books, highlights, vocabulary, and reading positions live in your browser (IndexedDB + `chrome.storage.local`).
+- **No accounts, no sign-in, no cloud sync.**
+- **No analytics, no telemetry, no ads.**
+- **No backend** — AI requests go from your browser directly to the provider you chose.
 
 ## Project Structure
 
 ```
 chromeApps/
   book-reader-extension/   Chrome Extension (React + Tailwind + Vite)
-  book-reader-api/         Backend API (Hono + Drizzle + PostgreSQL)
+  book-reader-api/         Legacy backend (not used by v1.0.5; kept for reference)
 ```
+
+> **Note on the API:** Earlier 1.0.x releases supported Google sign-in and a server-side AI fallback through `book-reader-api/`. Starting with **v1.0.5** the extension is BYOK-only and ships without sign-in or sync. The `book-reader-api/` folder is preserved for historical reference but is no longer required to run the extension.
 
 ## Quick Start
 
 ### Install from Release
 
-1. Download `instant-book-reader-v1.0.2.zip` from [Releases](https://github.com/aatmik-panse/chrome-reader/releases/latest)
+1. Download `instant-book-reader-1.0.5.zip` from [Releases](https://github.com/aatmik-panse/chrome-reader/releases/latest)
 2. Unzip the file
 3. Go to `chrome://extensions`
 4. Enable **Developer mode**
@@ -95,84 +100,37 @@ cd book-reader-extension
 npm test
 ```
 
-### Backend API (Optional)
-
-The extension works fully offline. The backend is only needed for cloud sync and server-side AI fallback.
-
-```bash
-cd book-reader-api
-cp .env.example .env
-npm install
-npm run dev
-```
-
-The API starts at `http://localhost:3000`.
-
-## Environment Variables
-
-**Backend (`book-reader-api/.env`):**
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `ANTHROPIC_API_KEY` | Anthropic API key for server-side AI |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `JWT_SECRET` | Secret for signing JWT tokens |
-| `PORT` | Server port (default: 3000) |
-
-**Extension (`book-reader-extension/.env`):**
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend API URL (default: http://localhost:3000) |
-
 ## AI Configuration
 
-The extension supports **Bring Your Own Key** (BYOK) for AI features. Go to **Settings → AI Keys** and add a key for any supported provider:
+Open **Settings → AI Keys**, paste a key for any supported provider, then select that provider as the active one. Click **Test** to verify the key works.
 
 | Provider | Models |
 |---|---|
-| OpenAI | GPT-4o, GPT-4o-mini, etc. |
-| Anthropic | Claude Sonnet, Claude Haiku, etc. |
-| Google Gemini | Gemini Pro, Gemini Flash, etc. |
+| Anthropic | Claude Sonnet, Claude Haiku, Claude Opus |
+| OpenAI | GPT-4.1, GPT-5.5-mini, etc. |
+| Google Gemini | Gemini 2.5 Pro, Gemini 3.1 Flash |
 | OpenRouter | Any model on OpenRouter |
 
-No API key? Sign in with Google to use the server-side fallback (requires the backend API).
+Keys are stored locally in `chrome.storage.local` (AES-wrapped) and are sent directly to the provider's API. If no key is configured, the AI panel shows an "Add an API key" affordance that deep-links into Settings → AI Keys.
 
 ## Permissions
 
 | Permission | Why |
 |---|---|
-| `storage` | Saves books, highlights, vocabulary, and reading positions locally |
-| `alarms` | Periodically saves reading position so a crash doesn't lose your spot |
-| `identity` | Optional Google Sign-In for cloud sync and server AI |
-| `api.dictionaryapi.dev` | Fetches word definitions |
+| `storage` | Saves books, highlights, vocabulary, reading positions, settings, and (encrypted) BYOK keys locally |
+| `api.dictionaryapi.dev` | Fetches word definitions for the dictionary popup |
 | `translate.google.com` | Pronunciation audio fallback |
-| `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com` / `openrouter.ai` | Only used if you add your own AI key |
+| `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com` / `openrouter.ai` | Only used when you add your own AI key for that provider |
 
-## Deploy Backend to Railway
-
-1. Push `book-reader-api/` to a GitHub repo
-2. Connect it to Railway
-3. Add a PostgreSQL database service
-4. Set the environment variables listed above
-5. Railway auto-deploys on push
-
-## Google OAuth Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project and enable the "Google Identity" API
-3. Create an OAuth 2.0 Client ID (type: Chrome Extension)
-4. Add the extension ID to the authorized origins
-5. Set `GOOGLE_CLIENT_ID` in both `.env` files and `manifest.json`
+No `identity` permission, no `alarms` permission, no background service worker.
 
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Tailwind CSS 4, Vite 8
 - **PDF:** pdf.js
 - **EPUB:** epub.js
-- **Backend:** Hono, Drizzle ORM, PostgreSQL
-- **Testing:** Vitest, Testing Library
+- **Local storage:** IndexedDB (via `idb`) + `chrome.storage.local`
+- **Testing:** Vitest, Testing Library, fake-indexeddb
 - **Design System:** Custom Clay-inspired system with tilt+shadow hover animations
 
 ## License

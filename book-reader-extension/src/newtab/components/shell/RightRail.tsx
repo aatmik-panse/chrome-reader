@@ -1,40 +1,28 @@
 import React from "react";
 import RailButton from "./RailButton";
-import Tooltip from "../Tooltip";
 import type { RightPanelId } from "../../hooks/usePanelState";
 
 export const RIGHT_RAIL_WIDTH_PX = 60;
-
-interface RightRailUser {
-  name: string;
-  email: string;
-}
 
 interface RightRailProps {
   activePanelId: RightPanelId | null;
   visible: boolean;
   onActivatePanel: (panelId: RightPanelId) => void;
-  user: RightRailUser | null;
   dueWordCount: number;
-  onSignIn: () => void;
-  onSignOut: () => void;
 }
 
 export default function RightRail({
   activePanelId,
   visible,
   onActivatePanel,
-  user,
   dueWordCount,
-  onSignIn,
-  onSignOut,
 }: RightRailProps) {
   if (!visible) return null;
   const dueBadge = dueWordCount > 0 ? dueWordCount : undefined;
   return (
     <nav
       aria-label="Tools navigation"
-      className="flex flex-col items-center justify-between py-3 border-l border-oat bg-cream/60 flex-shrink-0"
+      className="flex flex-col items-center py-3 border-l border-oat bg-cream/60 flex-shrink-0"
       style={{ width: RIGHT_RAIL_WIDTH_PX }}
     >
       <div className="flex flex-col gap-1">
@@ -63,31 +51,6 @@ export default function RightRail({
         >
           <BookIcon />
         </RailButton>
-      </div>
-      <div>
-        {user ? (
-          <Tooltip label={`Sign out (${user.email})`} position="left">
-            <button
-              type="button"
-              onClick={onSignOut}
-              aria-label={`Signed in as ${user.name}. Click to sign out.`}
-              className="w-9 h-9 rounded-full bg-ube-800 flex items-center justify-center text-clay-white text-xs font-bold clay-shadow"
-            >
-              {user.name.charAt(0).toUpperCase()}
-            </button>
-          </Tooltip>
-        ) : (
-          <Tooltip label="Sign in with Google" position="left">
-            <button
-              type="button"
-              onClick={onSignIn}
-              aria-label="Sign in with Google"
-              className="w-9 h-9 rounded-full border border-oat flex items-center justify-center text-silver hover:text-clay-black hover:border-charcoal transition-colors"
-            >
-              <SignInIcon />
-            </button>
-          </Tooltip>
-        )}
       </div>
     </nav>
   );
@@ -118,15 +81,6 @@ function BookIcon() {
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
       <path d="M8 7h6" />
       <path d="M8 11h8" />
-    </svg>
-  );
-}
-
-function SignInIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="6" r="2.5" />
-      <path d="M3 14c.8-2.5 2.8-4 5-4s4.2 1.5 5 4" />
     </svg>
   );
 }

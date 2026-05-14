@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { VocabWord, VocabContext, VocabDefinition, LeitnerRating } from "../lib/vocab/types";
 import {
   listVocab,
@@ -6,24 +6,17 @@ import {
   deleteVocab,
   getVocabByWord,
 } from "../lib/vocab/storage";
-import { pullVocab, pushPendingVocab } from "../lib/vocab/sync";
 import { applyRating } from "../lib/vocab/leitner";
 
 export function useVocab() {
   const [items, setItems] = useState<VocabWord[]>([]);
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     setItems(await listVocab());
   }, []);
 
   useEffect(() => {
-    pullVocab().then(setItems);
-  }, []);
-
-  const scheduleSync = useCallback(() => {
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => pushPendingVocab(), 800);
+    listVocab().then(setItems);
   }, []);
 
   const dueCount = useMemo(() => {
@@ -56,19 +49,17 @@ export function useVocab() {
       };
       const persisted = await upsertVocab(fresh);
       await refresh();
-      scheduleSync();
       return persisted;
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   const unsave = useCallback(
     async (id: string) => {
       await deleteVocab(id);
       await refresh();
-      scheduleSync();
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   const findByWord = useCallback(async (word: string): Promise<VocabWord | null> => {
@@ -85,14 +76,12 @@ export function useVocab() {
         ...found,
         ...newState,
         updatedAt: Date.now(),
-        syncedAt: undefined,
       };
       await upsertVocab(updated);
       await refresh();
-      scheduleSync();
       return updated;
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   const resetStage = useCallback(
@@ -107,13 +96,11 @@ export function useVocab() {
         nextReviewAt: Date.now(),
         correctStreak: 0,
         updatedAt: Date.now(),
-        syncedAt: undefined,
       };
       await upsertVocab(reset);
       await refresh();
-      scheduleSync();
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   return { items, dueCount, save, unsave, findByWord, applyReview, resetStage, refresh };

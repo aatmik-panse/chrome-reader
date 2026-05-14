@@ -64,8 +64,6 @@ export async function upsertVocab(input: VocabWord): Promise<VocabWord> {
       audioUrl: existing.audioUrl ?? input.audioUrl,
       definitions: existing.definitions.length > 0 ? existing.definitions : input.definitions,
       updatedAt: now,
-      syncedAt: undefined,
-      deleted: false,
     };
     await db.put(STORE, merged);
     return merged;
@@ -95,24 +93,5 @@ export async function listDueWords(now: number): Promise<VocabWord[]> {
 
 export async function deleteVocab(id: string): Promise<void> {
   const db = await getDB();
-  const existing = (await db.get(STORE, id)) as VocabWord | undefined;
-  if (!existing) return;
-  existing.deleted = true;
-  existing.updatedAt = Date.now();
-  existing.syncedAt = undefined;
-  await db.put(STORE, existing);
-}
-
-export async function listAllUnsynced(): Promise<VocabWord[]> {
-  const db = await getDB();
-  const all = (await db.getAll(STORE)) as VocabWord[];
-  return all.filter((w) => !w.syncedAt || w.syncedAt < w.updatedAt);
-}
-
-export async function markSynced(id: string, at: number): Promise<void> {
-  const db = await getDB();
-  const existing = (await db.get(STORE, id)) as VocabWord | undefined;
-  if (!existing) return;
-  existing.syncedAt = at;
-  await db.put(STORE, existing);
+  await db.delete(STORE, id);
 }

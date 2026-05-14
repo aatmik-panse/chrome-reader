@@ -13,11 +13,6 @@ import {
 } from "../../lib/ai/openrouter";
 import type { AiClient } from "../../lib/ai/types";
 
-interface ByokSettingsProps {
-  isAuthenticated: boolean;
-  onSignIn: () => void;
-}
-
 interface ProviderDescriptor {
   id: AiProvider;
   label: string;
@@ -95,7 +90,7 @@ const INITIAL_TEST_STATE: ProviderTestState = {
   latencyMs: null,
 };
 
-export default function ByokSettings({ isAuthenticated, onSignIn }: ByokSettingsProps) {
+export default function ByokSettings() {
   const { byok, setActiveProvider, setKey, setModel, clearAllKeys } = useByok();
   const [revealKey, setRevealKey] = useState<Partial<Record<AiProvider, boolean>>>({});
   const [testState, setTestState] = useState<Partial<Record<AiProvider, ProviderTestState>>>({});
@@ -138,20 +133,11 @@ export default function ByokSettings({ isAuthenticated, onSignIn }: ByokSettings
     }
   };
 
-  const isServerSelected = byok.activeProvider === null;
-  const handleSelectServer = (): void => {
-    setActiveProvider(null);
-    if (!isAuthenticated) onSignIn();
-  };
-
   return (
     <div className="space-y-6">
       <ActiveProviderRadioGroup
         activeProvider={byok.activeProvider}
         onSelectProvider={setActiveProvider}
-        onSelectServer={handleSelectServer}
-        isServerSelected={isServerSelected}
-        isAuthenticated={isAuthenticated}
       />
 
       <div className="space-y-5 border-t border-oat pt-5">
@@ -190,17 +176,11 @@ export default function ByokSettings({ isAuthenticated, onSignIn }: ByokSettings
 interface ActiveProviderRadioGroupProps {
   activeProvider: AiProvider | null;
   onSelectProvider: (provider: AiProvider) => void;
-  onSelectServer: () => void;
-  isServerSelected: boolean;
-  isAuthenticated: boolean;
 }
 
 function ActiveProviderRadioGroup({
   activeProvider,
   onSelectProvider,
-  onSelectServer,
-  isServerSelected,
-  isAuthenticated,
 }: ActiveProviderRadioGroupProps) {
   return (
     <div>
@@ -214,15 +194,6 @@ function ActiveProviderRadioGroup({
             onSelect={() => onSelectProvider(descriptor.id)}
           />
         ))}
-        <RadioRow
-          label={
-            isAuthenticated
-              ? "Use server (Google sign-in)"
-              : "Use server (Google sign-in) — sign in required"
-          }
-          checked={isServerSelected}
-          onSelect={onSelectServer}
-        />
       </div>
     </div>
   );

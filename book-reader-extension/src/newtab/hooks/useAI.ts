@@ -1,16 +1,19 @@
 import { useCallback, useState } from "react";
 import { aiSummarize, aiAsk, aiHighlights, aiExplain } from "../lib/api";
-import { isAuthenticated, isOnline } from "../lib/http";
 import { useByok } from "./useByok";
 import { getConfiguredProvider } from "../lib/ai/byok-helpers";
 import type { ByokConfig } from "../lib/ai/byok-cache";
 
 const OFFLINE_MSG = "AI features require an internet connection.";
 const NO_AI_CONFIGURED_MSG =
-  "AI is not configured. Add a provider key in Settings → AI Keys, or sign in with Google.";
+  "AI is not configured. Add a provider key in Settings → AI Keys.";
+
+function isOnline(): boolean {
+  return navigator.onLine;
+}
 
 function isAiUsable(byok: ByokConfig): boolean {
-  return getConfiguredProvider(byok) !== null || isAuthenticated();
+  return getConfiguredProvider(byok) !== null;
 }
 
 function checkAvailability(byok: ByokConfig): string | null {

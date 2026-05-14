@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Highlight, HighlightAnchor, HighlightColor } from "../lib/highlights/types";
 import {
   listHighlights,
@@ -6,11 +6,9 @@ import {
   deleteHighlight,
   getHighlight,
 } from "../lib/highlights/storage";
-import { pullHighlightsForBook, pushPendingHighlights } from "../lib/highlights/sync";
 
 export function useHighlights(bookHash: string | null) {
   const [items, setItems] = useState<Highlight[]>([]);
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     if (!bookHash) return setItems([]);
@@ -18,14 +16,12 @@ export function useHighlights(bookHash: string | null) {
   }, [bookHash]);
 
   useEffect(() => {
-    if (!bookHash) return;
-    pullHighlightsForBook(bookHash).then(setItems);
+    if (!bookHash) {
+      setItems([]);
+      return;
+    }
+    listHighlights(bookHash).then(setItems);
   }, [bookHash]);
-
-  const scheduleSync = useCallback(() => {
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => pushPendingHighlights(), 800);
-  }, []);
 
   const create = useCallback(
     async (text: string, color: HighlightColor, anchor: HighlightAnchor): Promise<Highlight> => {
@@ -42,31 +38,28 @@ export function useHighlights(bookHash: string | null) {
       };
       await putHighlight(h);
       await refresh();
-      scheduleSync();
       return h;
     },
-    [bookHash, refresh, scheduleSync]
+    [bookHash, refresh]
   );
 
   const update = useCallback(
     async (id: string, patch: Partial<Pick<Highlight, "color" | "note">>) => {
       const found = await getHighlight(id);
       if (!found) return;
-      const updated: Highlight = { ...found, ...patch, updatedAt: Date.now(), syncedAt: undefined };
+      const updated: Highlight = { ...found, ...patch, updatedAt: Date.now() };
       await putHighlight(updated);
       await refresh();
-      scheduleSync();
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   const remove = useCallback(
     async (id: string) => {
       await deleteHighlight(id);
       await refresh();
-      scheduleSync();
     },
-    [refresh, scheduleSync]
+    [refresh]
   );
 
   return { items, create, update, remove, refresh };

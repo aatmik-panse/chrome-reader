@@ -4,8 +4,6 @@ import {
   putHighlight,
   listHighlights,
   deleteHighlight,
-  listAllUnsynced,
-  markSynced,
 } from "../../../src/newtab/lib/highlights/storage";
 import { Highlight } from "../../../src/newtab/lib/highlights/types";
 
@@ -43,20 +41,11 @@ describe("highlights storage", () => {
     expect(list[0].id).toBe(a.id);
   });
 
-  it("deletes a highlight (tombstone)", async () => {
+  it("deletes a highlight", async () => {
     const h = fixture();
     await putHighlight(h);
     await deleteHighlight(h.id);
     const list = await listHighlights(h.bookHash);
     expect(list).toHaveLength(0);
-  });
-
-  it("lists unsynced and marks synced", async () => {
-    const h = fixture();
-    await putHighlight(h);
-    const pending = await listAllUnsynced();
-    expect(pending).toHaveLength(1);
-    await markSynced(h.id, Date.now());
-    expect(await listAllUnsynced()).toHaveLength(0);
   });
 });

@@ -6,14 +6,15 @@ import ByokSettings from "./settings/ByokSettings";
 import type { UseThemeResult } from "../hooks/useTheme";
 import type { CustomThemeDef } from "../lib/themes/types";
 
+export type SettingsSection = "themes" | "reader" | "ai" | "pdf";
+
 interface SettingsProps {
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
   onClose: () => void;
   isPdf?: boolean;
   theme: UseThemeResult;
-  isAuthenticated: boolean;
-  onSignIn: () => void;
+  initialSection?: SettingsSection | null;
 }
 
 const VIEW_MODE_OPTIONS: { id: PdfViewMode; label: string }[] = [
@@ -27,8 +28,6 @@ const PDF_TINT_OPTIONS: { id: PdfTint; label: string }[] = [
   { id: "dark", label: "Dark" },
   { id: "sepia", label: "Sepia" },
 ];
-
-type SettingsSection = "themes" | "reader" | "ai" | "pdf";
 
 const SECTIONS: { id: SettingsSection; label: string; icon: React.ReactNode }[] = [
   {
@@ -104,9 +103,11 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
   );
 }
 
-export default function Settings({ settings, onChange, onClose, isPdf, theme, isAuthenticated, onSignIn }: SettingsProps) {
+export default function Settings({ settings, onChange, onClose, isPdf, theme, initialSection }: SettingsProps) {
   const update = (patch: Partial<ReaderSettings>) => onChange({ ...settings, ...patch });
-  const [activeSection, setActiveSection] = useState<SettingsSection>(isPdf ? "pdf" : "themes");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    initialSection ?? (isPdf ? "pdf" : "themes"),
+  );
   const [editingCustomTheme, setEditingCustomTheme] = useState<CustomThemeDef | null>(null);
   const [showThemeBuilder, setShowThemeBuilder] = useState(false);
 
@@ -236,12 +237,7 @@ export default function Settings({ settings, onChange, onClose, isPdf, theme, is
               </div>
             )}
 
-            {activeSection === "ai" && (
-              <ByokSettings
-                isAuthenticated={isAuthenticated}
-                onSignIn={onSignIn}
-              />
-            )}
+            {activeSection === "ai" && <ByokSettings />}
 
             {activeSection === "pdf" && (
               <div className="space-y-6">

@@ -11,13 +11,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         newtab: resolve(__dirname, "src/newtab/index.html"),
-        "service-worker": resolve(__dirname, "src/background/service-worker.ts"),
-      },
-      output: {
-        entryFileNames: (chunk) => {
-          if (chunk.name === "service-worker") return "service-worker.js";
-          return "assets/[name]-[hash].js";
-        },
       },
     },
   },

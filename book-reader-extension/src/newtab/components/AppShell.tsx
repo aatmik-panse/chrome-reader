@@ -11,11 +11,6 @@ import type {
   UsePanelStateResult,
 } from "../hooks/usePanelState";
 
-interface AppShellUser {
-  name: string;
-  email: string;
-}
-
 interface AppShellProps {
   settings: ReaderSettings;
   onSettingsChange: (next: ReaderSettings) => void;
@@ -31,10 +26,7 @@ interface AppShellProps {
   bookFormat: "epub" | "pdf" | "txt" | null;
   readingTimeMinutes: number | null;
 
-  user: AppShellUser | null;
   dueWordCount: number;
-  onSignIn: () => void;
-  onSignOut: () => void;
   onOpenSettings: () => void;
 
   leftPanelTitle: string | null;
@@ -49,7 +41,7 @@ interface AppShellProps {
  * Persistent layout chrome for the reader.
  *
  * Composition only — does not own any state besides what's already passed
- * in via `panel`. App.tsx remains the orchestration layer for book/auth/
+ * in via `panel`. App.tsx remains the orchestration layer for book/
  * settings/theme/position.
  */
 export default function AppShell({
@@ -63,10 +55,7 @@ export default function AppShell({
   bookAuthor,
   bookFormat,
   readingTimeMinutes,
-  user,
   dueWordCount,
-  onSignIn,
-  onSignOut,
   onOpenSettings,
   leftPanelTitle,
   rightPanelTitle,
@@ -177,10 +166,7 @@ export default function AppShell({
           activePanelId={panelState.right}
           visible={settings.showRightRail}
           onActivatePanel={handleActivateRight}
-          user={user}
           dueWordCount={dueWordCount}
-          onSignIn={onSignIn}
-          onSignOut={onSignOut}
         />
       </div>
     </div>

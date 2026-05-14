@@ -7,13 +7,13 @@ interface AIPanelProps {
   onAsk: (question: string) => Promise<string | null>;
   onHighlights: () => Promise<string[] | null>;
   onExplain: (selection: string) => Promise<string | null>;
+  onOpenAiSettings: () => void;
   selectedText: string;
   autoExplainText?: string | null;
   onAutoExplainConsumed?: () => void;
   loading: boolean;
   error: string | null;
   available: boolean;
-  onSignIn: () => void;
 }
 
 interface ChatMessage {
@@ -31,13 +31,13 @@ export default function AIPanel({
   onAsk,
   onHighlights,
   onExplain,
+  onOpenAiSettings,
   selectedText,
   autoExplainText,
   onAutoExplainConsumed,
   loading,
   error,
   available,
-  onSignIn,
 }: AIPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -91,12 +91,15 @@ export default function AIPanel({
       {!available && (
         <div className="px-4 py-5 text-center border-b border-oat">
           <p className="text-sm text-charcoal mb-1">
-            {navigator.onLine ? "Sign in to unlock AI" : "AI needs internet"}
+            {navigator.onLine ? "Add an API key to unlock AI" : "AI needs internet"}
           </p>
-          <p className="text-xs text-silver mb-3">Summaries, Q&amp;A, highlights, and explanations.</p>
+          <p className="text-xs text-silver mb-3">
+            Summaries, Q&amp;A, highlights, and explanations. Bring your own key
+            from Anthropic, OpenAI, Google, or OpenRouter.
+          </p>
           {navigator.onLine && (
-            <button onClick={onSignIn} className="clay-btn-solid text-xs !py-1.5 !px-4">
-              Sign in with Google
+            <button onClick={onOpenAiSettings} className="clay-btn-solid text-xs !py-1.5 !px-4">
+              Add an API key
             </button>
           )}
         </div>
@@ -151,7 +154,7 @@ export default function AIPanel({
             type="text"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder={available ? "Ask about the book..." : "Sign in to ask..."}
+            placeholder={available ? "Ask about the book..." : "Add an API key to ask..."}
             disabled={!available}
             className="flex-1 px-3 py-2 text-sm rounded-[4px] border border-oat bg-clay-white text-clay-black placeholder:text-silver focus:outline-2 focus:outline-[rgb(20,110,245)] disabled:opacity-50"
           />

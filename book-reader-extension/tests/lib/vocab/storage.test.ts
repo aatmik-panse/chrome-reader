@@ -5,8 +5,6 @@ import {
   getVocabByWord,
   listVocab,
   deleteVocab,
-  listAllUnsynced,
-  markSynced,
   listDueWords,
 } from "../../../src/newtab/lib/vocab/storage";
 import { VocabWord, VocabContext } from "../../../src/newtab/lib/vocab/types";
@@ -77,20 +75,12 @@ describe("vocab storage", () => {
     expect(found!.word).toBe("elucidate");
   });
 
-  it("soft-deletes (tombstone) and excludes from listVocab", async () => {
+  it("deletes a word and excludes from listVocab", async () => {
     const w = fixture();
     await upsertVocab(w);
     await deleteVocab(w.id);
     const list = await listVocab();
     expect(list).toHaveLength(0);
-  });
-
-  it("listAllUnsynced + markSynced", async () => {
-    const w = fixture();
-    await upsertVocab(w);
-    expect(await listAllUnsynced()).toHaveLength(1);
-    await markSynced(w.id, NOW + 1);
-    expect(await listAllUnsynced()).toHaveLength(0);
   });
 
   it("listDueWords returns words with nextReviewAt <= now and not mastered", async () => {

@@ -53,32 +53,5 @@ export async function listHighlights(bookHash: string): Promise<Highlight[]> {
 
 export async function deleteHighlight(id: string): Promise<void> {
   const db = await getDB();
-  const existing = (await db.get(STORE, id)) as Highlight | undefined;
-  if (!existing) return;
-  existing.deleted = true;
-  existing.updatedAt = Date.now();
-  existing.syncedAt = undefined;
-  await db.put(STORE, existing);
-}
-
-export async function listAllUnsynced(): Promise<Highlight[]> {
-  const db = await getDB();
-  const all = (await db.getAll(STORE)) as Highlight[];
-  return all.filter((h) => !h.syncedAt || h.syncedAt < h.updatedAt);
-}
-
-export async function markSynced(id: string, at: number): Promise<void> {
-  const db = await getDB();
-  const existing = (await db.get(STORE, id)) as Highlight | undefined;
-  if (!existing) return;
-  existing.syncedAt = at;
-  await db.put(STORE, existing);
-}
-
-export async function purgeTombstones(): Promise<void> {
-  const db = await getDB();
-  const all = (await db.getAll(STORE)) as Highlight[];
-  for (const h of all) {
-    if (h.deleted && h.syncedAt) await db.delete(STORE, h.id);
-  }
+  await db.delete(STORE, id);
 }

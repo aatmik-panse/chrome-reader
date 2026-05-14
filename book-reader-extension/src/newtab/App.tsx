@@ -3,7 +3,7 @@ import Reader from "./components/Reader";
 import AppShell from "./components/AppShell";
 import AIPanel from "./components/AIPanel";
 import ProgressBar from "./components/ProgressBar";
-import Settings from "./components/Settings";
+import Settings, { type SettingsSection } from "./components/Settings";
 import DictionaryPopup from "./components/popups/DictionaryPopup";
 import TranslatePopup from "./components/popups/TranslatePopup";
 import HighlightEditPopup from "./components/popups/HighlightEditPopup";
@@ -16,7 +16,6 @@ import TocPanel from "./components/panels/TocPanel";
 import type { ToolbarAction, HighlightColor } from "./components/SelectionToolbar";
 import { useBook } from "./hooks/useBook";
 import { usePosition } from "./hooks/usePosition";
-import { useAuth } from "./hooks/useAuth";
 import { useAI } from "./hooks/useAI";
 import { useTheme } from "./hooks/useTheme";
 import { usePanelState } from "./hooks/usePanelState";
@@ -48,9 +47,9 @@ export default function App() {
   const { bootstrapped } = useAppBootstrap();
   const { currentBook, library, loading, error, progressByHash, uploadBook, removeBook, switchBook, archiveBook, unarchiveBook } =
     useBook();
-  const { user, signIn, signOut } = useAuth();
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialSection, setSettingsInitialSection] = useState<SettingsSection | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedText, setSelectedText] = useState("");
@@ -119,30 +118,9 @@ export default function App() {
   }, [theme.activeThemeId, settings]);
 
   useEffect(() => {
-    if (!user || !currentBook?.hash) return;
+    if (!currentBook?.hash) return;
     highlights.refresh();
-  }, [user, currentBook?.hash]);
-
-  useEffect(() => {
-    const onOnline = () => {
-      import("./lib/highlights/sync").then((m) => m.pushPendingHighlights());
-    };
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    vocab.refresh();
-  }, [user]);
-
-  useEffect(() => {
-    const onOnline = () => {
-      import("./lib/vocab/sync").then((m) => m.pushPendingVocab());
-    };
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, []);
+  }, [currentBook?.hash]);
 
   const handleSettingsChange = useCallback(async (next: ReaderSettings) => {
     setSettings(next);
@@ -332,8 +310,6 @@ export default function App() {
     return (
       <EmptyStateHero
         onUploadBook={uploadBook}
-        onSignIn={signIn}
-        showSignIn={!user}
         error={error}
       />
     );
@@ -388,7 +364,10 @@ export default function App() {
     selectedText,
     autoExplainText: pendingExplainText,
     onAutoExplainConsumed: () => setPendingExplainText(null),
-    onSignIn: signIn,
+    onOpenAiSettings: () => {
+      setSettingsInitialSection("ai");
+      setShowSettings(true);
+    },
     highlights: highlights.items,
     onJumpToHighlight: (highlight) => handlePositionChange(highlight.anchor.chapterIndex, 0, 0),
     vocab,
@@ -412,11 +391,11 @@ export default function App() {
         bookAuthor={currentBook?.metadata.author ?? ""}
         bookFormat={currentBook?.format ?? null}
         readingTimeMinutes={readingTimeMinutes}
-        user={user}
         dueWordCount={vocab.dueCount}
-        onSignIn={signIn}
-        onSignOut={signOut}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => {
+          setSettingsInitialSection(null);
+          setShowSettings(true);
+        }}
         leftPanelTitle={leftPanelTitle}
         rightPanelTitle={rightPanelTitle}
         leftPanelContent={leftPanelContent}
@@ -516,8 +495,7 @@ export default function App() {
           onClose={() => setShowSettings(false)}
           isPdf={currentBook?.format === "pdf"}
           theme={theme}
-          isAuthenticated={!!user}
-          onSignIn={signIn}
+          initialSection={settingsInitialSection}
         />
       )}
       {editing && (() => {
@@ -560,12 +538,10 @@ const SUPPORTED_BOOK_FORMAT_PILLS: ReadonlyArray<{ label: string; colorClass: st
 
 interface EmptyStateHeroProps {
   onUploadBook: (file: File) => void;
-  onSignIn: () => void;
-  showSignIn: boolean;
   error: string | null;
 }
 
-function EmptyStateHero({ onUploadBook, onSignIn, showSignIn, error }: EmptyStateHeroProps) {
+function EmptyStateHero({ onUploadBook, error }: EmptyStateHeroProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
@@ -657,15 +633,6 @@ function EmptyStateHero({ onUploadBook, onSignIn, showSignIn, error }: EmptyStat
           Everything stays on your device &middot; Works offline
         </p>
 
-        {showSignIn && (
-          <button
-            onClick={onSignIn}
-            className="mt-5 text-xs text-silver hover:text-matcha-600 transition-colors underline underline-offset-2"
-          >
-            Sign in for cloud sync &amp; AI
-          </button>
-        )}
-
         {error && (
           <p className="mt-4 text-sm text-pomegranate-400 bg-pomegranate-400/10 px-4 py-2 rounded-[12px]">{error}</p>
         )}
@@ -751,7 +718,7 @@ interface RightPanelRenderArgs {
   selectedText: string;
   autoExplainText: string | null;
   onAutoExplainConsumed: () => void;
-  onSignIn: () => void;
+  onOpenAiSettings: () => void;
   highlights: ReturnType<typeof useHighlights>["items"];
   onJumpToHighlight: (highlight: ReturnType<typeof useHighlights>["items"][number]) => void;
   vocab: ReturnType<typeof useVocab>;
@@ -767,7 +734,7 @@ function renderRightPanelContent({
   selectedText,
   autoExplainText,
   onAutoExplainConsumed,
-  onSignIn,
+  onOpenAiSettings,
   highlights,
   onJumpToHighlight,
   vocab,
@@ -783,13 +750,13 @@ function renderRightPanelContent({
         onAsk={(question) => ai.ask(question, getCurrentChapterText())}
         onHighlights={() => ai.highlights(getCurrentChapterText())}
         onExplain={(selection) => ai.explain(selection, getCurrentChapterText())}
+        onOpenAiSettings={onOpenAiSettings}
         selectedText={selectedText}
         autoExplainText={autoExplainText}
         onAutoExplainConsumed={onAutoExplainConsumed}
         loading={ai.loading}
         error={ai.error}
         available={ai.available}
-        onSignIn={onSignIn}
       />
     );
   }
