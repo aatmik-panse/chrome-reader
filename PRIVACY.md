@@ -1,142 +1,112 @@
 # Instant Book Reader — Privacy Policy
 
-Last updated: May 11, 2026.
+**Last updated:** 14 May 2026
+**Applies to:** Instant Book Reader for Chrome (extension ID `beconkamchfbjkplbapbkhmjdmpjfeni`), version 1.1.0 and later.
 
-This Privacy Policy explains what data the Instant Book Reader Chrome extension ("the extension", "we") collects, how it is handled, where it is stored, and with whom it is shared. The extension is designed to work fully offline — every feature that transmits data does so only in direct response to an explicit user action, and most users will never sign in or send any data off their device.
+## Summary
 
-If you do not agree with this policy, do not install or use the extension.
+Instant Book Reader does not collect, store, or transmit any personal data to its developer or to any service operated by its developer. It has no accounts, no sign-in, no cloud sync, and no backend. All of your reading data stays on your device.
 
----
+The extension contacts third-party services only when **you** trigger a feature that requires them (defining a word, playing pronunciation audio, or using the optional AI assistant with your own API key). When that happens, the request goes directly from your browser to the third party — the developer does not sit in the middle and does not see the request.
 
-## 1. Summary
+## What stays on your device
 
-- **Default behavior:** all reading data (books, positions, highlights, vocabulary, preferences) is stored **only on your device** in your browser's IndexedDB and `chrome.storage.local`. Nothing is sent to any server.
-- **Optional Google Sign-In** unlocks cloud sync of reading progress, highlights, and vocabulary across your devices, plus AI-powered features. Sign-in is entirely optional.
-- **Optional AI features** can either use your own API key (your data is sent directly from your browser to the provider you choose) or our hosted fallback (your data is sent to our server, which forwards the request to Anthropic).
-- **Two unauthenticated lookups** — dictionary definitions and text-to-speech audio — are sent to third-party services only when you explicitly click the corresponding button on a selected word.
-- We do **not** sell user data. We do **not** use user data for advertising. We do **not** use user data to train AI models. We do **not** share user data with third parties except to deliver the feature you invoked.
+The following data is stored exclusively in your browser, using `chrome.storage.local` and IndexedDB, and is never transmitted to the developer:
 
----
+- Uploaded book files (EPUB, PDF, TXT)
+- Reading position for each book
+- Highlights (text, color, optional note)
+- Saved vocabulary words and their context sentences
+- Spaced-repetition review state for each saved word
+- Reader preferences (theme, font, line spacing, layout, translate target language, PDF view mode)
+- Custom themes you create
+- AI provider API keys you choose to add in Settings → AI Keys
 
-## 2. Data we handle
+When you uninstall the extension, Chrome deletes this data along with it.
 
-The categories below list every type of data the extension may handle. Anything not listed here is not collected.
+## What we do not collect
 
-### 2.1 Data stored only on your device
+Instant Book Reader does **not** collect, log, infer, or transmit any of the following:
 
-The following data is stored locally in your browser (IndexedDB and `chrome.storage.local`) and never leaves your device unless you opt into sync (Section 2.2) or AI features (Section 2.3):
+- Personally identifiable information (no name, email, address, age, or identifier)
+- Authentication credentials (the extension has no sign-in)
+- Health, financial, or payment information
+- Personal communications
+- Location data, IP address, or GPS
+- Web browsing history
+- User activity logs, clicks, mouse position, scroll, or keystroke data
+- The text of your books, your highlights, or your saved vocabulary
 
-- **Book files** you import (EPUB, PDF, TXT) and their extracted text and table of contents. Stored in IndexedDB, keyed by a SHA-256 hash of the file bytes.
-- **Reading position** for each book (current chapter, scroll offset, page number).
-- **Highlights and notes** you create on text inside your books.
-- **Vocabulary entries** (words you save), associated definitions, and spaced-repetition review state.
-- **Reader preferences**: theme, font, font size, line spacing, layout, translation target language, panel sizes, last opened book.
-- **Encrypted API keys**: if you enable Bring-Your-Own-Key (BYOK) AI, the API keys you enter are stored in `chrome.storage.local`, AES-encrypted with a key derived inside the extension. They are never transmitted to our servers.
-- **Authentication token cache**: if you sign in, the JWT issued by our backend (Section 4) is stored locally so you don't have to sign in on every new tab.
+The extension contains no analytics SDK, no telemetry, no crash reporter, and no advertising code.
 
-You can delete all locally stored data at any time by removing the extension from `chrome://extensions` (Chrome will clear its IndexedDB and `chrome.storage.local`) or by using "Clear data" inside the extension's settings.
+## Third-party services you opt into
 
-### 2.2 Data sent to our backend, only if you sign in
+The extension makes outbound network requests only in the following circumstances. In each case, the request is made directly from your browser to the third party using their public API; the developer does not receive, proxy, or log it.
 
-If — and only if — you sign in with Google, the following data is transmitted to and stored on our backend server (Section 4):
+### 1. Dictionary lookups (`api.dictionaryapi.dev`)
 
-- **Your Google account identifiers**: Google ID (`sub`), email address, display name, and profile picture URL, obtained from the Google ID token. Used solely to create and identify your account.
-- **Reading position** for each book: the hash of the book, the current location identifier (chapter id, page number, or character offset), and a timestamp. Used to resume reading on another device.
-- **Highlights**: the hash of the book, the selected text, surrounding anchor text, an optional note, color, and timestamps.
-- **Vocabulary entries**: the saved word, the sentence it appeared in, its definition, the book hash, and review state.
+When you use the **Define** action on a selected word, that single word is sent to `api.dictionaryapi.dev`, a free public dictionary API, to retrieve its definition, part of speech, and phonetic transcription. Only the selected word is included in the request. No identifier, no token, no other information about you or your book is sent.
 
-We do **not** receive your book files, your full reading content, or your highlights' position within the file beyond what is needed to anchor a highlight back to its passage. Books themselves never leave your device.
+### 2. Pronunciation audio (`translate.google.com`)
 
-If you sign out or delete your account, this server-side data is deleted (Section 6).
+When a dictionary definition does not include a human-recorded pronunciation, the **Listen** button fetches a text-to-speech audio clip from `translate.google.com`. Only the word being pronounced appears in the URL. No identifier is attached.
 
-### 2.3 Data sent to AI providers, only when you invoke an AI feature
+### 3. AI assistant (bring-your-own-key)
 
-When you click an AI action (e.g., "Summarize", "Explain", "Translate"), the extension sends a prompt to an AI provider. The prompt typically includes the text you selected and a short instruction, and may include a small amount of surrounding context from the same book to make the answer useful.
+The AI assistant is opt-in. It is disabled until you go to **Settings → AI Keys**, paste an API key for one of the supported providers, and select that provider as the active one. Once configured, when you click **Summarize**, **Highlights**, **Explain**, **Ask**, or **Translate**, the relevant text excerpt (and your question, if any) is sent **directly from your browser** to the API of the provider you selected, authenticated with the API key you stored locally. Supported providers and the endpoints they use:
 
-You choose which provider handles the request:
+- **Anthropic** — `https://api.anthropic.com/`
+- **OpenAI** — `https://api.openai.com/`
+- **Google Gemini** — `https://generativelanguage.googleapis.com/`
+- **OpenRouter** — `https://openrouter.ai/`
 
-- **Bring-Your-Own-Key (BYOK) mode** (preferred): the request is sent **directly from your browser** to the provider you configured — OpenAI, Anthropic, Google (Gemini), or OpenRouter — using your own API key. Our servers do not see the request. Each provider's own privacy policy governs that traffic.
-- **Hosted fallback mode**: if you are signed in and have not configured a BYOK provider, the request is sent to our backend, which forwards it to Anthropic's API. We do not store prompt content or responses beyond a short-lived response cache; see Section 4.
+The developer does **not** operate a proxy, relay, or fallback endpoint for these requests. The developer cannot read them, log them, or bill for them. Your API key never leaves your device except as the standard `Authorization` header on the call your browser makes to your chosen provider.
 
-The extension does **not** send AI prompts unless you explicitly trigger an AI action.
+Each provider has its own privacy policy governing how they handle the prompts you send. Refer to the policy of the provider you choose:
 
-### 2.4 Data sent to other third parties, only when you click a button
+- Anthropic: https://www.anthropic.com/legal/privacy
+- OpenAI: https://openai.com/policies/privacy-policy
+- Google: https://policies.google.com/privacy
+- OpenRouter: https://openrouter.ai/privacy
 
-- **Dictionary lookup** ("Define"): the single word you selected is sent over HTTPS to `https://api.dictionaryapi.dev` to fetch a definition. No identifiers, no book content, no account info are sent. See the Free Dictionary API's terms at [dictionaryapi.dev](https://dictionaryapi.dev).
-- **Text-to-speech** (the 🔊 audio button, only when the dictionary did not include a pronunciation): the single word is sent over HTTPS to `https://translate.google.com/translate_tts` to retrieve an audio file. Google's privacy policy applies: [policies.google.com/privacy](https://policies.google.com/privacy).
+### 4. Web search shortcut
 
-These two requests are anonymous — they contain only the selected word, not your identity, and they are not associated with your account.
+The **Search** action on the selection toolbar opens a new tab pointed at `https://www.google.com/search?q=<your selection>`. This is a normal browser tab navigation; the extension itself does not transmit anything. Google's privacy policy applies to that tab the same way it would for any Google search.
 
----
+## Permissions and why we request them
 
-## 3. What we do **not** collect
+Instant Book Reader requests the smallest set of permissions needed for its features.
 
-- We do **not** collect personally identifiable information beyond what you provide via Google Sign-In (email, name, profile picture).
-- We do **not** collect health, financial, payment, location, web-browsing-history, or device-identifier data.
-- We do **not** use analytics, telemetry, tracking pixels, advertising IDs, fingerprinting, or session-recording tools.
-- We do **not** read the content of any other website you visit. The extension only activates on the New Tab page and on book files you explicitly open inside it.
-- We do **not** sell, rent, or transfer your data to data brokers, advertisers, or any other third party for their own purposes.
-- We do **not** use your data, prompts, highlights, or reading content to train any AI model — ours or anyone else's.
+| Permission | Reason |
+|---|---|
+| `storage` | Persist your books, reading positions, highlights, vocabulary, settings, and (if you add one) your AI API key on this device. |
+| Host: `api.dictionaryapi.dev` | Dictionary definitions when you use **Define**. |
+| Host: `translate.google.com` | Pronunciation audio when no other recording is available. |
+| Host: `api.anthropic.com` | Only when you have configured an Anthropic key and trigger an AI action. |
+| Host: `api.openai.com` | Only when you have configured an OpenAI key and trigger an AI action. |
+| Host: `generativelanguage.googleapis.com` | Only when you have configured a Google Gemini key and trigger an AI action. |
+| Host: `openrouter.ai` | Only when you have configured an OpenRouter key and trigger an AI action. |
 
----
+The extension does **not** request `identity`, `alarms`, `activeTab`, `tabs`, `cookies`, `webRequest`, or any other permission. It does not run content scripts on any web page. It does not run a background service worker.
 
-## 4. How and where data is stored
+## What changed from earlier versions (1.0.x → 1.1.0)
 
-- **Local data** (Section 2.1) lives in Chrome's IndexedDB and `chrome.storage.local` on your device. It is subject to Chrome's own storage protections.
-- **Backend data** (Section 2.2) is stored in a PostgreSQL database hosted on Railway (operated by Railway Corp., United States). The connection is encrypted in transit (TLS). Database access is restricted to the extension developer.
-- **AI hosted fallback** (Section 2.3): requests are proxied to Anthropic's API ([anthropic.com/privacy](https://www.anthropic.com/privacy)). Anthropic processes the request and returns a response. Anthropic states that API inputs and outputs are not used to train their models by default. We do not log prompt content; only minimal request metadata (timestamp, user id, token counts) is recorded for abuse prevention and is retained for at most 30 days.
-- **BYOK AI traffic** (Section 2.3): your browser talks directly to the chosen provider. Their policies apply: [OpenAI](https://openai.com/policies/privacy-policy), [Anthropic](https://www.anthropic.com/privacy), [Google AI](https://policies.google.com/privacy), [OpenRouter](https://openrouter.ai/privacy).
-- **Authentication**: Google Sign-In is performed via `chrome.identity.getAuthToken`. The Google ID token is exchanged for a JWT issued by our backend. We do not see, store, or have access to your Google password.
+Versions 1.0.4 and earlier offered an optional Google Sign-In used to enable cloud sync of reading positions, highlights, and vocabulary across devices, plus a server-side AI fallback. Starting with **version 1.1.0**, these features have been removed entirely. The extension no longer requests the `identity` or `alarms` permissions, no longer runs a background service worker, and no longer communicates with any backend operated by the developer.
 
-All transmissions between the extension and our backend, and between the extension and third-party services listed above, occur over HTTPS/TLS.
+## Data retention and deletion
 
----
+Because no data is collected or stored on the developer's infrastructure, there is nothing on our side to retain or delete. To erase all data the extension has stored locally, remove the extension from `chrome://extensions` (or use **Clear all keys** in Settings → AI Keys to remove only AI keys while keeping your library).
 
-## 5. Permissions used
+## Children
 
-The extension declares these Chrome permissions, used only for the purposes below:
+Instant Book Reader is a general-audience reading tool and is not directed at children under 13. It does not knowingly collect any data from anyone.
 
-- `storage` — to persist preferences, the last-opened-book pointer, and the most recent reading position locally on your device.
-- `identity` — to enable optional Google Sign-In via `chrome.identity.getAuthToken`. Not used unless you click "Sign in".
-- `alarms` — to schedule a low-frequency background tick (at most once per minute) that flushes your current reading position from memory into `chrome.storage.local`, so a crash or unexpected tab close does not lose your place. The alarm performs only local writes and, separately, when you are signed in, periodically POSTs your latest position to our backend.
-- Host permissions for `googleapis.com`, `api.dictionaryapi.dev`, `translate.google.com`, `api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, `openrouter.ai` — only to send the specific requests described in Sections 2.3 and 2.4, in direct response to user action.
+## Changes to this policy
 
-The extension does **not** request `tabs`, `activeTab`, `webNavigation`, `cookies`, `history`, `bookmarks`, content-script injection on arbitrary sites, or any other broad permission.
+If the extension's data-handling behavior ever changes, this policy will be updated and a notice will be included in the release notes for the corresponding version. The "Last updated" date at the top of this document reflects the most recent revision.
 
----
+## Contact
 
-## 6. Data retention and deletion
+For questions about this policy or this extension's privacy practices, open an issue at:
 
-- **Local data**: retained on your device until you delete a book, clear data from settings, or uninstall the extension. Uninstalling the extension causes Chrome to delete all of its IndexedDB and `chrome.storage.local` data.
-- **Backend data** (only present if you signed in): retained for as long as your account exists. You can delete your account from inside the extension's settings; this permanently deletes your reading positions, highlights, and vocabulary entries from our database. You can also request deletion by emailing the contact address in Section 9.
-- **AI request metadata**: retained for at most 30 days for abuse prevention, then deleted.
-- We do not retain backups beyond what is operationally necessary, and backups roll off within 30 days.
-
----
-
-## 7. Children's privacy
-
-The extension is not directed to children under 13. We do not knowingly collect data from children under 13. If you believe a child has provided data, contact us (Section 9) and we will delete it.
-
----
-
-## 8. Changes to this policy
-
-If we make material changes to this policy, we will update the "Last updated" date at the top and post a notice in the extension's release notes and on the Chrome Web Store listing. Continued use of the extension after a change indicates acceptance of the updated policy.
-
----
-
-## 9. Contact
-
-For privacy questions, data-deletion requests, or to report a concern, open an issue or contact the developer at:
-
-- GitHub issues: <https://github.com/aatmik-panse/chrome-reader/issues>
-- Email: aatmik.panse@gmail.com
-
-We aim to respond within 14 days.
-
----
-
-## 10. Your rights
-
-Depending on where you live (e.g., EEA, UK, California), you may have rights to access, correct, delete, or port your personal data, and to object to or restrict its processing. To exercise these rights, contact us using the details in Section 9. We will not discriminate against you for exercising any of these rights.
+https://github.com/aatmik-panse/chrome-reader/issues
